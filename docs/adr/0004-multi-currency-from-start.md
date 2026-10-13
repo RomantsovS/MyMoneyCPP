@@ -1,6 +1,7 @@
 # ADR-0004: Multiple currencies from the start
 
-- **Status:** Accepted · 2026-10-13
+- **Status:** Accepted · 2026-10-13 · amended by [ADR-0009](0009-exchange-rates-for-balance-reports.md)
+  (balance reports need conversion)
 - **Plan item:** D3
 
 ## Context
