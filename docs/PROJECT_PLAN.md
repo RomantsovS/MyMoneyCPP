@@ -1,6 +1,6 @@
 # MyMoney — Project Plan and System Design
 
-> **Status:** draft v0.1 · 2026-10-12
+> **Status:** draft v0.2 · 2026-10-13
 > **Type:** personal learning project
 >
 > This document is a *living plan*. Update it when you make a decision or finish a milestone.
@@ -16,10 +16,17 @@
    what you learn, and how you know you are done.
 4. When you make a decision, write a short ADR in `docs/adr/` (see D20) and update its status here.
 
-**The rule of this project:** *you* write the application code. Claude explains concepts,
-answers questions, reviews your code, and suggests exercises. Claude writes code only when
-you explicitly ask — usually boilerplate (`.gitignore`, CMake presets) or small examples
-to illustrate a concept, not your feature code.
+**The rule of this project: design first, then code.** Claude writes the code, but only
+after the design of that piece has been discussed and agreed. No code without an agreed design.
+For every milestone (or bigger feature):
+
+1. **Discuss** — Claude presents the design options and trade-offs; you ask questions and decide.
+2. **Record** — the decision goes into an ADR in `docs/adr/` and its status into section 11.
+3. **Implement** — Claude writes the code in small, reviewable steps on a milestone branch.
+4. **Explain** — Claude walks you through the important parts; you should be able to explain
+   every part yourself. If something is unclear, it is discussed before moving on.
+5. **Verify** — you build and run it on the targets; tests must pass.
+6. **Merge** — you review the diff and merge (or ask Claude to commit/merge).
 
 ---
 
@@ -383,8 +390,8 @@ Tests run on the **desktop** kit (fast). The `core` and `storage` code is the sa
 - **Git:** small commits; one branch per milestone (`m2-storage`), merged when "done when" is met.
 - **Tests:** `core` and `storage` are developed test-first or test-alongside. Target: every
   business rule has a test. UI is tested manually at first.
-- **Review:** at the end of each milestone, ask Claude to review the milestone diff
-  (`/code-review`), then fix or consciously accept the findings.
+- **Review:** you review every diff before it is merged; for bigger milestones also run
+  `/code-review` for a second look, then fix or consciously accept the findings.
 - **Warnings:** compile with high warning level (`/W4` on MSVC, `-Wall -Wextra` on clang/GCC);
   treat warnings as errors in `core` and `storage`.
 - **Sanitizers:** run tests with AddressSanitizer on MSVC or in WSL (GCC) from time to time.
@@ -475,15 +482,15 @@ Overview — details below. *Status:* ☐ open · ☑ decided (link the ADR).
 
 | ID | Question | Decide before | Status |
 |---|---|---|---|
-| D1 | What is in the MVP? | M0 | ☐ |
-| D2 | Ledger model | M1 | ☐ |
-| D3 | Multi-currency in MVP? | M1 | ☐ |
+| D1 | What is in the MVP? | M0 | ◐ mostly answered 2026-10-13 — see notes below |
+| D2 | Ledger model | M1 | ☐ in discussion — decide on its own merits, not because 1C does it |
+| D3 | Multi-currency in MVP? | M1 | ☑ yes, per-currency totals, no rates — [ADR-0004](adr/0004-multi-currency-from-start.md) |
 | D4 | ID type | M1 | ☐ |
-| D5 | Does `core` use Qt types? | M1 | ☐ |
-| D6 | Database access library | M2 | ☐ |
+| D5 | Does `core` use Qt types? | M1 | ☑ no, pure C++23 — [ADR-0002](adr/0002-core-is-pure-cpp23.md) |
+| D6 | Database / storage technology and access | M2 | ☐ in discussion — SQL vs document DB; own DB interface wanted |
 | D7 | Migrations and date storage | M2 | ☐ |
-| D8 | Test framework | M1 | ☐ |
-| D9 | C++ standard | M0/M1 | ☐ |
+| D8 | Test framework | M1 | ☑ GoogleTest — [ADR-0003](adr/0003-googletest.md) |
+| D9 | C++ standard | M0/M1 | ☑ C++23; GCC 14 on Linux — [ADR-0002](adr/0002-core-is-pure-cpp23.md) |
 | D10 | Visual style | M3 | ☐ |
 | D11 | Navigation and desktop layout | M3 | ☐ |
 | D12 | How QML gets C++ objects | M3 | ☐ |
@@ -491,10 +498,16 @@ Overview — details below. *Status:* ☐ open · ☑ decided (link the ADR).
 | D14 | Sync between devices | later | ☐ |
 | D15 | 1C import format; in v1? | M7 | ☐ |
 | D16 | Error handling style | M1 | ☐ |
-| D17 | Naming and formatting style | M0 | ☐ |
-| D18 | App name, package ID, repo hosting | M0 | ☐ |
+| D17 | Naming and formatting style | M0 | ◐ snake_case, `private_member_`; details open |
+| D18 | App name, package ID, repo hosting | M0 | ☑ [ADR-0005](adr/0005-android-package-id.md) |
 | D19 | UI language(s) | M3 | ☐ |
-| D20 | How to record decisions | M0 | ☐ |
+| D20 | How to record decisions | M0 | ☑ ADRs — [ADR-0001](adr/0001-record-decisions-as-adrs.md) |
+
+**D1 notes (2026-10-13), from the current usage of the 1C app since 2012:**
+accounts in several currencies (→ D3); sub-categories — 1C uses depth 3, the new app needs 2;
+labels (operation tags, e.g. "vacation 2026.08") — *not* MVP, maybe never;
+main report — income and expenses by category hierarchy, filters: currency, category,
+account, date (+ label later); budgets — never used; full history must be migrated (D15).
 
 ### D1 — What is in the MVP?
 Write down what you *actually use* in the 1C version every week. Everything else goes to "later".
@@ -623,8 +636,9 @@ Qt Creator / WebKit style or your work style.
 
 ### D18 — App name, package ID, repository
 - Name: **MyMoney** (decided earlier).
-- Android package ID (permanent once installed): e.g. `io.github.<your-github-name>.mymoney`.
-- Repository: local only, or a **private GitHub** repo (backup + CI in M9)?
+- Android package ID (permanent once installed): proposal `io.github.romantsovs.mymoney`
+  (reverse domain of your GitHub Pages address, which you own).
+- Repository: ☑ GitHub `RomantsovS/MyMoneyCPP`, branch `master` (decided 2026-10-13).
 
 ### D19 — UI language(s)
 English only, another language only, or both? Use `qsTr()` from the start anyway;
@@ -645,7 +659,7 @@ remember *why* — the ADR will.
 | Tooling breaks after updates (we already hit one) | lost evenings | pin versions in README; update Qt/SDK deliberately, not automatically |
 | Qt 6.12.0 is a fresh `.0` release | small bugs | update to 6.12.x patch releases when they come |
 | Scope creep ("one more feature") | never reach daily use | strict MVP (D1); "later" list in section 3.2 |
-| Learning stalls on hard topics (QML ↔ C++, Android storage) | frustration | small milestones; ask for explanations/examples, not finished code |
+| Code is written faster than it is understood | the project works, but nothing is learned | design discussion before code, walkthrough after (section 0); small milestones; you must be able to explain each part |
 | Floating-point money bugs | wrong balances | `int64` minor units only; tests for rounding/overflow |
 
 ---
