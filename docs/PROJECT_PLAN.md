@@ -349,7 +349,7 @@ MyMoney/
 │   │   ├── migrations/       # 0001_initial.sql, …
 │   │   └── sqlite_account_repository.h / .cpp …
 │   │
-│   ├── cli/                  # mymoney_cli (executable "mymoney") — pure C++23
+│   ├── cli/                  # mymoney_cli (executable "mymoney-cli") — pure C++23
 │   │   ├── CMakeLists.txt
 │   │   ├── main.cpp          # composition root
 │   │   └── commands/         # account, operation, report, balance, import …
@@ -422,9 +422,9 @@ Notes:
 
 Each milestone is small enough for a few evenings. "Learn" lists the topics we discuss.
 
-### M0 — Skeleton runs everywhere
+### M0 — Skeleton runs everywhere — ✅ done 2026-10-16
 - **Build:** CMake structure, presets, compiler options, `.gitattributes`, `.gitignore`,
-  `.clang-format`, `.clang-tidy`; `core` with the generated version; `mymoney --version`;
+  `.clang-format`, `.clang-tidy`; `core` with the generated version; `mymoney-cli --version`;
   GoogleTest with a first test; a QML window showing the version on desktop, emulator and phone;
   Android package ID, name and version set in CMake. No `storage` yet (M2).
 - **Learn:** CMake targets and presets, `FetchContent`, generated files (`configure_file`),

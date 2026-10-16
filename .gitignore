@@ -1,0 +1,17 @@
+# Build output (presets build into build/<preset>/) and deployed apps
+# ("cmake --install" into dist/<preset>/)
+/build/
+/dist/
+/out/
+
+# Machine-specific CMake presets (local Qt path etc.)
+CMakeUserPresets.json
+
+# Qt Creator
+CMakeLists.txt.user*
+/.qtcreator/
+*.autosave
+
+# Visual Studio / VS Code local state
+/.vs/
+/.vscode/

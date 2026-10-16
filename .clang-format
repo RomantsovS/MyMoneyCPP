@@ -1,0 +1,29 @@
+# Google C++ style (ADR-0008) with a few explicit settings.
+---
+Language: Cpp
+BasedOnStyle: Google
+Standard: Latest
+
+# Google style derives pointer alignment from the file; make it fixed.
+DerivePointerAlignment: false
+PointerAlignment: Left
+
+# Include order (Google): related header, C system, C++ standard, other libraries,
+# our project. Blocks are separated by an empty line.
+IncludeBlocks: Regroup
+IncludeCategories:
+  # C system headers: <stdlib.h>
+  - Regex: '^<[a-z0-9_]+\.h>$'
+    Priority: 1
+  # Qt: <QString>, <QtCore/QString>
+  - Regex: '^<Q[A-Za-z0-9]+(/.*)?>$'
+    Priority: 3
+  # Other third-party libraries: <gtest/gtest.h>, <gmock/gmock.h>
+  - Regex: '^<(gtest|gmock)/'
+    Priority: 4
+  # C++ standard library: <string>, <vector>
+  - Regex: '^<[a-z_0-9]+>$'
+    Priority: 2
+  # Our project: "core/version.h"
+  - Regex: '^"'
+    Priority: 5

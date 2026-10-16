@@ -1,0 +1,15 @@
+# Qt-facing code: same rules as the root config, with the conflicts removed (ADR-0008).
+---
+InheritParentConfig: true
+Checks:
+  # Qt's memory model: "new QObject(parent)" - the parent deletes its children.
+  # The check sees every such "new" as a leaked owning raw pointer.
+  - '-cppcoreguidelines-owning-memory'
+  # Qt models and item delegates downcast with static_cast where the type is
+  # guaranteed (and qobject_cast elsewhere); the check forbids all downcasts.
+  - '-cppcoreguidelines-pro-type-static-cast-downcast'
+
+CheckOptions:
+  # Names visible from QML (properties, signals, Q_INVOKABLE methods) and overrides of
+  # Qt virtual functions (rowCount, roleNames) use Qt's camelCase.
+  readability-identifier-naming.MethodIgnoredRegexp: '^((set_)?[a-z][a-z0-9_]*|[a-z][a-zA-Z0-9]*)$'

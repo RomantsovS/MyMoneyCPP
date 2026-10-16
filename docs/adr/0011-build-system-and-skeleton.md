@@ -43,14 +43,26 @@ feature code exists. These choices are hard to change later, so they are recorde
     (`QT_ANDROID_PACKAGE_NAME`, `QT_ANDROID_APP_NAME`, `QT_ANDROID_VERSION_NAME`,
     `QT_ANDROID_VERSION_CODE`). Version code = `major·10000 + minor·100 + patch`.
     Version single source: `project(MyMoney VERSION …)`.
-12. **Names:** targets `mymoney_*`; output files `MyMoney` (app) and `mymoney` (CLI).
+12. **Names:** targets `mymoney_*`; output files `MyMoney` (app) and `mymoney-cli` (CLI).
+    Not `mymoney`: Windows file names are case-insensitive, so `mymoney.exe` and
+    `MyMoney.exe` would overwrite each other in one install folder.
     Source files `snake_case.cpp` / `snake_case.h` — **`.cpp`, not Google's `.cc`**.
-13. **Workflow:** one branch per milestone (`m0-skeleton`) and a GitHub pull request.
+13. **Workflow:** one branch per milestone (`m0-skeleton`). No GitHub pull requests: the
+    changes are reviewed locally, then merged into `master` and pushed.
+14. **Desktop deployment:** `cmake --install` (or the `install` target) creates a
+    self-contained folder `dist/<preset>/` with both executables plus the Qt libraries,
+    plugins and QML modules (Qt's `qt_generate_deploy_qml_app_script`, which runs
+    `windeployqt` on Windows). The app runs without Qt on `PATH`.
+    The app's QML lives in the `MyMoney.UI` module, so the QML import scanner is pointed at
+    `src/ui` — via `QT_QML_IMPORT_SCANNER_EXTRA_ROOT_PATHS` (desktop) and
+    `QT_QML_ROOT_PATH` (Android).
 
 ## Consequences
 
 - Pure C++ targets are added *before* Qt is set up in the top-level `CMakeLists.txt`, so Qt's
   automatic code generation (AUTOMOC) never touches them.
-- Command-line builds with MSVC + Ninja need the MSVC environment (Developer PowerShell);
-  Qt Creator provides it automatically.
+- Command-line builds with MSVC + Ninja need the MSVC environment: they are run from the
+  "Developer PowerShell for VS 2026" (which uses Visual Studio's CMake, ≥ 3.30 as required).
+  Qt Creator provides the environment automatically. Presets build into `build/<preset>/`,
+  separate from Qt Creator's build folders, so the two CMake versions never share one.
 - The Android package ID is fixed from the first install on.
