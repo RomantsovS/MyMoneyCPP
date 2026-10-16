@@ -1,6 +1,7 @@
 # ADR-0008: Google C++ Style Guide
 
-- **Status:** Accepted · 2026-10-13
+- **Status:** Accepted · 2026-10-13 · amended by [ADR-0011](0011-build-system-and-skeleton.md)
+  (source files use `.cpp` instead of `.cc`)
 - **Plan items:** D17, D16
 
 ## Decision

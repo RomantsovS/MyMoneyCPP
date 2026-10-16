@@ -1,6 +1,6 @@
 # MyMoney — Project Plan and System Design
 
-> **Status:** draft v0.3 · 2026-10-13
+> **Status:** draft v0.4 · 2026-10-16
 > **Type:** personal learning project
 >
 > This document is a *living plan*. Update it when a decision is made or a milestone is finished.
@@ -124,7 +124,7 @@ to, so the compiler *enforces* the dependency rules.
 flowchart TB
     subgraph frontends["Frontends (composition roots)"]
         cli["mymoney_cli — pure C++<br/>Windows, Linux"]
-        app["appMyMoney — Qt Quick<br/>Android, Windows, Linux"]
+        app["mymoney_app — Qt Quick<br/>Android, Windows, Linux"]
     end
     subgraph ui["mymoney_ui — Qt (QML module MyMoney.UI)"]
         qml["QML pages & components"]
@@ -228,7 +228,7 @@ accessed through an **own C++23 wrapper** over the C API. No Qt SQL.
   No `setContextProperty`.
 - Lists: C++ classes derived from `QAbstractListModel`, filled from `core` services.
 - Forms: controller objects with `Q_PROPERTY`s, a `valid` property and `Q_INVOKABLE save()`.
-- Services created in `app/main.cc` and injected (D12).
+- Services created in `app/main.cpp` and injected (D12).
 - Conversions at the border: `std::string` (UTF-8) ↔ `QString`,
   `std::chrono::year_month_day` ↔ `QDate`, `Money` → formatted text with `QLocale`.
 
@@ -318,12 +318,17 @@ No package manager (vcpkg / Conan) — not needed for this small set.
 
 ```
 MyMoney/
-├── CMakeLists.txt            # top level: project(), options, add_subdirectory(…)
-├── CMakePresets.json         # desktop debug/release (with/without Qt), android, linux
+├── CMakeLists.txt            # top level: project(VERSION), options, pure C++ part, then Qt part
+├── CMakePresets.json         # command-line presets: windows/linux, debug/release, no-UI
+├── CMakeUserPresets.json     # local only (git-ignored): Qt path of this machine
 ├── README.md                 # what it is, how to build, exact tool versions
-├── .gitignore
+├── .gitignore  .gitattributes
 ├── .clang-format             # BasedOnStyle: Google
-├── .clang-tidy
+├── .clang-tidy               # checks + Google naming
+│
+├── cmake/
+│   ├── CompilerOptions.cmake # mymoney_compile_options INTERFACE target, mymoney_target_defaults()
+│   └── Dependencies.cmake    # FetchContent: GoogleTest (SQLite from M2)
 │
 ├── docs/
 │   ├── PROJECT_PLAN.md       # this file
@@ -332,52 +337,55 @@ MyMoney/
 ├── src/
 │   ├── core/                 # mymoney_core (static lib) — pure C++23
 │   │   ├── CMakeLists.txt
-│   │   ├── money.h / money.cc
+│   │   ├── version.h, version.cpp.in   # generated from project(VERSION)
+│   │   ├── money.h / money.cpp
 │   │   ├── account.h, category.h, operation.h, exchange_rate.h …
 │   │   ├── repositories/     # interfaces: account_repository.h, operation_repository.h …
 │   │   └── services/         # operation_service, balance_service, report_service …
 │   │
-│   ├── storage/              # mymoney_storage (static lib) — pure C++23 + SQLite
+│   ├── storage/              # mymoney_storage (static lib) — pure C++23 + SQLite (from M2)
 │   │   ├── CMakeLists.txt
 │   │   ├── sqlite/           # own wrapper: database.h, statement.h, transaction.h
 │   │   ├── migrations/       # 0001_initial.sql, …
-│   │   └── sqlite_account_repository.h / .cc …
+│   │   └── sqlite_account_repository.h / .cpp …
 │   │
-│   ├── cli/                  # mymoney_cli (executable) — pure C++23
+│   ├── cli/                  # mymoney_cli (executable "mymoney") — pure C++23
 │   │   ├── CMakeLists.txt
-│   │   ├── main.cc           # composition root
+│   │   ├── main.cpp          # composition root
 │   │   └── commands/         # account, operation, report, balance, import …
 │   │
-│   ├── ui/                   # mymoney_ui — Qt, QML module "MyMoney.UI"
+│   ├── ui/                   # mymoney_ui (static lib) — Qt, QML module "MyMoney.UI"
 │   │   ├── CMakeLists.txt
-│   │   ├── models/           # account_list_model.h/.cc …
-│   │   ├── controllers/      # operation_editor.h/.cc …
+│   │   ├── .clang-tidy       # inherits the root config, relaxes rules that conflict with Qt
+│   │   ├── models/           # account_list_model.h/.cpp …
+│   │   ├── controllers/      # operation_editor.h/.cpp …
 │   │   └── qml/
 │   │       ├── Main.qml
 │   │       ├── pages/        # AccountsPage.qml, JournalPage.qml …
 │   │       └── components/   # MoneyField.qml, CategoryPicker.qml …
 │   │
-│   └── app/                  # appMyMoney (executable) — Qt
-│       ├── CMakeLists.txt
-│       └── main.cc           # composition root
+│   └── app/                  # mymoney_app (executable "MyMoney") — Qt
+│       ├── CMakeLists.txt    # also the Android package settings
+│       └── main.cpp          # composition root
 │
-├── android/                  # AndroidManifest.xml, res/ (icons)
-├── resources/                # shared icons, fonts
+├── android/                  # later: AndroidManifest.xml, res/ (icons) — not needed in M0
 │
-└── tests/
+└── tests/                    # one test executable per layer
     ├── CMakeLists.txt
-    ├── core/                 # money_test.cc, operation_service_test.cc …
-    ├── storage/              # tests on SQLite ":memory:"
-    └── cli/
+    ├── core/                 # mymoney_core_tests: version_test.cpp, money_test.cpp …
+    ├── storage/              # mymoney_storage_tests: SQLite ":memory:"
+    └── cli/                  # mymoney_cli_tests
 ```
 
 Notes:
 
-- File names follow Google style: `snake_case.h` / `snake_case.cc`. QML files keep the QML
-  convention (`PascalCase.qml`), because the file name is the QML type name.
-- **The Qt part is optional in the build:** a CMake option (e.g. `MYMONEY_BUILD_UI`) lets you
-  build only `core` + `storage` + `cli` + tests, without Qt.
-- Build directories are outside the source tree or ignored by git.
+- File names: `snake_case.h` / `snake_case.cpp` (ADR-0011 — `.cpp` instead of Google's `.cc`).
+  QML files keep the QML convention (`PascalCase.qml`), because the file name is the QML type name.
+- Includes are written from `src/`: `#include "core/version.h"` (Google style: path from the
+  project's source root). Header guards follow the same path: `MYMONEY_CORE_VERSION_H_`.
+- **The Qt part is optional in the build:** `MYMONEY_BUILD_UI=OFF` builds only the pure C++
+  targets — no Qt needed.
+- Build directories: `build/<preset>/` inside the repo (git-ignored), or Qt Creator's own.
 
 ---
 
@@ -402,8 +410,9 @@ Notes:
 - **Tests:** every business rule in `core` and every repository in `storage` has tests.
 - **Review:** you review every diff before merge; bigger milestones also get a `/code-review`.
 - **Style:** clang-format on save; clang-tidy clean (ADR-0008).
-- **Warnings:** `/W4` (MSVC), `-Wall -Wextra -Wpedantic` (clang/GCC); warnings are errors in
-  `core`, `storage`, `cli`.
+- **Warnings:** `/W4 /permissive-` (MSVC); `-Wall -Wextra -Wpedantic -Wshadow -Wconversion
+  -Wsign-conversion -Wold-style-cast -Wnon-virtual-dtor` (clang/GCC); warnings are errors in
+  all our own targets, never in third-party code (ADR-0011).
 - **Sanitizers:** AddressSanitizer + UBSan runs in WSL from time to time.
 - **CI (M10):** GitHub Actions — Windows + Linux build and tests, Android APK build.
 
@@ -414,13 +423,15 @@ Notes:
 Each milestone is small enough for a few evenings. "Learn" lists the topics we discuss.
 
 ### M0 — Skeleton runs everywhere
-- **Build:** CMake structure for all targets (empty libs), presets, `.clang-format`, `.clang-tidy`,
-  GoogleTest with one dummy test; `mymoney_cli --version`; an empty QML window on desktop,
-  emulator and phone.
-- **Learn:** CMake targets and presets, `FetchContent`, `qt_add_executable`, `qt_add_qml_module`,
-  how an APK is built, kits vs presets, clang-tidy.
+- **Build:** CMake structure, presets, compiler options, `.gitattributes`, `.gitignore`,
+  `.clang-format`, `.clang-tidy`; `core` with the generated version; `mymoney --version`;
+  GoogleTest with a first test; a QML window showing the version on desktop, emulator and phone;
+  Android package ID, name and version set in CMake. No `storage` yet (M2).
+- **Learn:** CMake targets and presets, `FetchContent`, generated files (`configure_file`),
+  `qt_add_executable`, `qt_add_qml_module` (static modules + plugins), how an APK is built,
+  kits vs presets, clang-format/clang-tidy.
 - **Done when:** the same commit builds and runs on all targets; tests run in Qt Creator.
-- **Decisions:** D17 ✔, D18 ✔, D20 ✔.
+- **Decisions:** D17 ✔, D18 ✔, D20 ✔, M0 build decisions ✔ ([ADR-0011](adr/0011-build-system-and-skeleton.md)).
 
 ### M1 — Domain core
 - **Build:** `Money`, `CurrencyCode`, `Account`, `Category` (depth rule), `Operation` +
@@ -525,6 +536,7 @@ translations (D19).
 | D21 | Exchange rates and conversion | M7 | ◐ proposed, only the rate source open — [ADR-0009](adr/0009-exchange-rates-for-balance-reports.md) |
 | D22 | CLI argument parsing | M3 | ☐ CLI itself decided — [ADR-0010](adr/0010-cli-frontend.md) |
 | D23 | Logging in pure C++ layers | M1 | ☐ |
+| D24 | Build system and M0 skeleton | M0 | ☑ [ADR-0011](adr/0011-build-system-and-skeleton.md) |
 
 ### Open decisions
 
@@ -543,7 +555,7 @@ or a custom style. *Recommendation:* Material, light + dark.
 
 **D12 — How QML gets C++ objects.**
 (A) engine-created singletons — simple, but they must find services themselves (global state);
-(B) objects created in `main.cc`, exposed with `QML_SINGLETON` + static `create()` factory —
+(B) objects created in `main.cpp`, exposed with `QML_SINGLETON` + static `create()` factory —
 explicit dependency injection, type-checked;
 (C) properties of the root window via `setInitialProperties` — explicit, but passed down by hand;
 (D) context properties — old style, avoid. *Recommendation:* B.
