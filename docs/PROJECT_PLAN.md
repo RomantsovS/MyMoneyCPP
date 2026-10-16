@@ -74,7 +74,7 @@ since 2012 is migrated from the old app.
 | **Android arm64** | Qt Quick UI | main daily use | `Qt 6.12.0 for Android arm64-v8a` | physical Pixel 6 (Android 17, API 37) |
 | Android x86_64 | Qt Quick UI | fast testing on PC | `Qt 6.12.0 for Android x86_64` | emulator `Pixel6` (API 37) |
 | **Windows x64** | CLI + Qt Quick UI | main *development* platform | MSVC (VS 2026) + Qt 6.12.0 | local PC |
-| **Linux x64** | CLI + Qt Quick UI | portability | GCC 14 + Qt 6.12 in WSL (Ubuntu 24.04) | WSL / WSLg |
+| **Linux x64** | CLI + Qt Quick UI | portability | GCC 15 + Qt 6.12 in WSL (Ubuntu 26.04 LTS) | WSL / WSLg |
 
 Android: Qt 6.12 defaults — **minSdk 28** (Android 9), **targetSdk 37** (Android 17). Kept as is.
 
@@ -278,7 +278,7 @@ Installed and verified (2026-10-12/13):
 | Android NDK | 27.2.12479018 (clang 18.0.3, libc++) | Android C++ compiler |
 | Android emulator | AVD `Pixel6`, API 37, x86_64, host GPU, WHPX | testing on PC |
 | Git | 2.54 · GitHub `RomantsovS/MyMoneyCPP` | version control |
-| WSL2 | Ubuntu 24.04 (GCC 13.3 default, **GCC 14.2 to install**), CMake 3.28 | Linux builds |
+| WSL2 | **Ubuntu 26.04.1 LTS** (installed 2026-10-16, replaces 24.04), systemd, WSLg; Git 2.53. GCC 15.2, CMake, Ninja, GDB available in apt but **not installed yet** | Linux builds |
 
 To set up later:
 
@@ -287,7 +287,7 @@ To set up later:
 | `.clang-format`, `.clang-tidy` | M0 | formatting, naming, static analysis (ADR-0008) |
 | `qmllint`, `qmlformat` | M4 | QML checks (in `C:\Qt\6.12.0\msvc2022_64\bin`) |
 | DB Browser for SQLite *(optional)* | M2 | inspect the database file |
-| GCC 14 + Qt 6.12 in WSL | M10 | Linux build |
+| Build tools + Qt 6.12 in WSL (Ubuntu 26.04) | M10 | Linux build |
 
 > **Lesson from the setup:** Android tooling breaks when versions drift
 > (cmdline-tools 23 vs Qt Creator 18 — QTCREATORBUG-34917).
@@ -391,7 +391,7 @@ Notes:
 | Android x86_64 Debug | Qt Android x86_64 | core, storage, ui, app | emulator |
 | Android arm64 Debug | Qt Android arm64-v8a | core, storage, ui, app | phone testing |
 | Android arm64 Release (signed) | Qt Android arm64-v8a | core, storage, ui, app | daily use (M9) |
-| Linux Debug | GCC 14 in WSL | everything | portability (M10) |
+| Linux Debug | GCC 15 in WSL | everything | portability (M10) |
 
 ---
 
@@ -486,7 +486,7 @@ Each milestone is small enough for a few evenings. "Learn" lists the topics we d
 - **Decisions:** D13.
 
 ### M10 — Linux and CI
-- **Build:** Linux build in WSL (GCC 14); GitHub Actions for Windows/Linux + Android APK.
+- **Build:** Linux build in WSL (GCC 15); GitHub Actions for Windows/Linux + Android APK.
 - **Learn:** portability, CI pipelines, artifacts.
 - **Done when:** every push is built and tested automatically.
 
@@ -510,7 +510,7 @@ translations (D19).
 | D6 | Storage technology and access | M2 | ☑ SQLite + own C++ wrapper — [ADR-0007](adr/0007-sqlite-with-own-cpp-wrapper.md) |
 | D7 | Migrations and date storage | M2 | ☐ |
 | D8 | Test framework | M1 | ☑ GoogleTest — [ADR-0003](adr/0003-googletest.md) |
-| D9 | C++ standard | M0 | ☑ C++23; GCC 14 on Linux — [ADR-0002](adr/0002-core-is-pure-cpp23.md) |
+| D9 | C++ standard | M0 | ☑ C++23; GCC 15 on Linux — [ADR-0002](adr/0002-core-is-pure-cpp23.md) |
 | D10 | Visual style | M4 | ☐ |
 | D11 | Navigation and desktop layout | M4 | ☐ |
 | D12 | How QML gets C++ objects | M4 | ☐ |

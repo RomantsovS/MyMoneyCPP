@@ -1,6 +1,6 @@
 # ADR-0002: The core layer is pure standard C++23
 
-- **Status:** Accepted · 2026-10-13
+- **Status:** Accepted · 2026-10-13 · amended 2026-10-16 (Linux toolchain, see the end)
 - **Plan items:** D5, D9
 
 ## Context
@@ -25,3 +25,10 @@ The wish is to use "as little Qt as possible".
 - Some conversion code in `ui` (`std::string` ↔ `QString`, `year_month_day` ↔ `QDate`).
 - GCC 13 (Ubuntu 24.04 default) lacks `std::print` and `std::ranges::to`.
   The Linux build will use **GCC 14** (`gcc-14` package in Ubuntu 24.04) instead.
+
+## Amendment · 2026-10-16 — Linux toolchain
+
+WSL now runs **Ubuntu 26.04 LTS** (replacing 24.04) with **GCC 15** as the Linux compiler.
+GCC 15's libstdc++ provides `std::print` and `std::ranges::to`, so the GCC 14 workaround
+above is no longer needed. The C++23 rule is unchanged: use only features that work on all
+three toolchains (MSVC, NDK clang/libc++, GCC).
