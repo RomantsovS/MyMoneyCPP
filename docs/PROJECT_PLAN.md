@@ -95,13 +95,15 @@ On the desktop it runs in a phone-sized window.
   filters: currency, category, account, date range.
 - **Balances** — current balance per account, and in a chosen currency **with conversion**
   (exchange rates — D21).
+- **Exchange rates** — downloaded from a public source for a configurable list of currencies,
+  manually or automatically on app start; manual entry as a fallback.
 - **Import** of the full history from the old app.
 - **Backup** — export / import of the database file.
 - **CLI** on PC for all of the above (except backup UI).
 
 ### 3.2 Later
 
-- **Balance history** in a chosen currency (D21 — maybe MVP).
+- **Balance history** in a chosen currency (not MVP — decided 2026-10-16).
 - **Labels** — tags on operations (e.g. "vacation 2026.08"), filter in reports. Not MVP, maybe never.
 - Charts (Qt Graphs).
 - Recurring / planned operations.
@@ -462,10 +464,11 @@ Each milestone is small enough for a few evenings. "Learn" lists the topics we d
 - **Done when:** a month of test data is easy to browse on the phone.
 
 ### M7 — Reports and currency conversion
-- **Build:** exchange rates (storage + entry); income/expense report by category tree per
-  currency; current balances in a chosen currency; maybe balance history (D21).
+- **Build:** exchange rates (storage, download from the chosen source, manual entry);
+  income/expense report by category tree per currency; current balances in a chosen currency.
 - **Learn:** aggregate SQL and recursive queries, exact decimal arithmetic for rates,
-  report UI (tree / table), Qt Graphs basics (optional).
+  interfaces for external services (`RateSource`), HTTP with Qt Network, parsing a provider's
+  response format, report UI (tree / table), Qt Graphs basics (optional).
 - **Done when:** reports match the same period in the old app.
 - **Decisions:** D21.
 
@@ -519,7 +522,7 @@ translations (D19).
 | D18 | Name, package ID, repo | M0 | ☑ [ADR-0005](adr/0005-android-package-id.md) |
 | D19 | UI language(s) | M4 | ☐ |
 | D20 | How to record decisions | M0 | ☑ ADRs — [ADR-0001](adr/0001-record-decisions-as-adrs.md) |
-| D21 | Exchange rates and conversion | M7 | ◐ proposed — [ADR-0009](adr/0009-exchange-rates-for-balance-reports.md) |
+| D21 | Exchange rates and conversion | M7 | ◐ proposed, only the rate source open — [ADR-0009](adr/0009-exchange-rates-for-balance-reports.md) |
 | D22 | CLI argument parsing | M3 | ☐ CLI itself decided — [ADR-0010](adr/0010-cli-frontend.md) |
 | D23 | Logging in pure C++ layers | M1 | ☐ |
 
@@ -556,8 +559,10 @@ in 1C), import labels into a table without UI or drop them, exchange-rate histor
 
 **D19 — UI language(s).** English, another language, or both. `qsTr()` from the start anyway.
 
-**D21 — Exchange rates.** See open questions in ADR-0009: source of rates, base currency,
-balance history in MVP or later, precision.
+**D21 — Exchange rates.** Decided (2026-10-16): download from the internet, configurable
+currency list, manual + on app start; rates stored as published (no global base currency;
+display currency chosen per report); balance history not MVP. Open: which rate source —
+see ADR-0009.
 
 **D22 — CLI argument parsing.** Hand-written (learning, no dependency), CLI11 (popular,
 header-only), Abseil flags (Google family, heavy), cxxopts (small).
