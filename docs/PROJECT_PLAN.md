@@ -272,13 +272,13 @@ Installed and verified (2026-10-12/13):
 | Qt Creator | **20.0.2** | IDE, debugger, Android deployment |
 | MSVC | Visual Studio Community 2026 (18.1) | desktop compiler |
 | CDB | Windows Kits 10 | desktop debugger |
-| CMake / Ninja | 3.30.5 / 1.12.1 (from Qt installer) | build system |
+| CMake / Ninja (Windows) | **3.30.5** / **1.12.1** from the Qt installer (`C:\Qt\Tools`) — used by Qt Creator. Visual Studio also bundles CMake **4.3.1**. None of them is on `PATH`. Which CMake to use and the minimum version → M0 design | build system |
 | JDK | Temurin 17.0.20 | Android build (Gradle) |
 | Android SDK | platform 37, build-tools, cmdline-tools 23.0, emulator | Android build & run |
 | Android NDK | 27.2.12479018 (clang 18.0.3, libc++) | Android C++ compiler |
 | Android emulator | AVD `Pixel6`, API 37, x86_64, host GPU, WHPX | testing on PC |
 | Git | 2.54 · GitHub `RomantsovS/MyMoneyCPP` | version control |
-| WSL2 | **Ubuntu 26.04.1 LTS** (installed 2026-10-16, replaces 24.04), systemd, WSLg; Git 2.53. GCC 15.2, CMake, Ninja, GDB available in apt but **not installed yet** | Linux builds |
+| WSL2 | **Ubuntu 26.04.1 LTS** (distro `Ubuntu-26.04`, installed 2026-10-16, replaces 24.04), systemd, WSLg; Git 2.53. In apt but **not installed yet**: GCC 15.2, CMake **4.2.3**, Ninja (universe — after `apt update`), GDB | Linux builds |
 
 To set up later:
 
