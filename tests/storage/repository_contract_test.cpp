@@ -135,6 +135,35 @@ TYPED_TEST(RepositoryContractTest, StoresAccountsWithDistinctIds) {
   EXPECT_FALSE(card.archived);
 }
 
+TYPED_TEST(RepositoryContractTest, FindsAccountByExactName) {
+  const Account card = this->AddAccount("Card USD Bank1", kUsd);
+
+  EXPECT_EQ(this->repos_.accounts.GetByName("Card USD Bank1"), card);
+  const Result<Account> other =
+      this->repos_.accounts.GetByName("card usd bank1");
+  ASSERT_FALSE(other.has_value());
+  EXPECT_EQ(other.error().code, ErrorCode::kNotFound);
+}
+
+// The UNIQUE index of migration 0002; the fake mirrors it. (Services report
+// duplicates earlier and more clearly, as kRuleViolation.)
+TYPED_TEST(RepositoryContractTest, StorageRejectsDuplicateNames) {
+  this->AddAccount("Cash EUR");
+  this->AddCategory("Food", CategoryKind::kExpense);
+
+  const Result<Account> account =
+      this->repos_.accounts.Add({.name = "Cash EUR", .currency = kUsd});
+  const Result<Category> category =
+      this->repos_.categories.Add({.name = "Food",
+                                   .kind = CategoryKind::kIncome,
+                                   .parent_id = std::nullopt});
+
+  ASSERT_FALSE(account.has_value());
+  EXPECT_EQ(account.error().code, ErrorCode::kStorage);
+  ASSERT_FALSE(category.has_value());
+  EXPECT_EQ(category.error().code, ErrorCode::kStorage);
+}
+
 TYPED_TEST(RepositoryContractTest, UnknownAccountIsNotFound) {
   const Result<Account> account = this->repos_.accounts.Get(AccountId(999));
 
@@ -184,6 +213,14 @@ TYPED_TEST(RepositoryContractTest, StoresCategoryTree) {
             (std::vector<Category>{food, *restaurants}));
 }
 
+TYPED_TEST(RepositoryContractTest, FindsCategoryByName) {
+  const Category food = this->AddCategory("Food", CategoryKind::kExpense);
+
+  EXPECT_EQ(this->repos_.categories.GetByName("Food"), food);
+  EXPECT_EQ(this->repos_.categories.GetByName("Drinks").error().code,
+            ErrorCode::kNotFound);
+}
+
 TYPED_TEST(RepositoryContractTest, UnknownCategoryIsNotFound) {
   const Result<Category> category =
       this->repos_.categories.Get(CategoryId(999));
@@ -227,6 +264,52 @@ TYPED_TEST(RepositoryContractTest, UnknownOperationIsNotFound) {
 
   ASSERT_FALSE(operation.has_value());
   EXPECT_EQ(operation.error().code, ErrorCode::kNotFound);
+}
+
+TYPED_TEST(RepositoryContractTest, ListsOperationsByDateAndFilter) {
+  const Account card = this->AddAccount("Card EUR");
+  const Account cash = this->AddAccount("Cash EUR");
+  const Category food = this->AddCategory("Food", CategoryKind::kExpense);
+  auto& operations = this->repos_.operations;
+  // Entered out of date order: the list is ordered by date, then by entry.
+  const Operation late =
+      operations
+          .Add(OperationDraft::Expense(Date(2026, 10, 20), cash.id, food.id,
+                                       Eur(300), "late")
+                   .value())
+          .value();
+  const Operation transfer =
+      operations
+          .Add(OperationDraft::Transfer(Date(2026, 10, 5), card.id, Eur(5000),
+                                        cash.id, Eur(5000), "ATM")
+                   .value())
+          .value();
+  const Operation early =
+      operations
+          .Add(OperationDraft::Expense(Date(2026, 10, 5), card.id, food.id,
+                                       Eur(100), "same day, entered later")
+                   .value())
+          .value();
+
+  EXPECT_EQ(operations.List({}),
+            (std::vector<Operation>{transfer, early, late}));
+  EXPECT_EQ(operations.List({.from = Date(2026, 10, 6),
+                             .to = std::nullopt,
+                             .account_id = std::nullopt}),
+            (std::vector<Operation>{late}));
+  EXPECT_EQ(operations.List({.from = std::nullopt,
+                             .to = Date(2026, 10, 5),
+                             .account_id = std::nullopt}),
+            (std::vector<Operation>{transfer, early}));
+  // A transfer belongs to both of its accounts.
+  EXPECT_EQ(
+      operations.List(
+          {.from = std::nullopt, .to = std::nullopt, .account_id = cash.id}),
+      (std::vector<Operation>{transfer, late}));
+  EXPECT_EQ(operations.List({.from = Date(2026, 11, 1),
+                             .to = std::nullopt,
+                             .account_id = std::nullopt}),
+            (std::vector<Operation>{}));
 }
 
 TYPED_TEST(RepositoryContractTest, SumOfAnAccountWithoutMovementsIsZero) {

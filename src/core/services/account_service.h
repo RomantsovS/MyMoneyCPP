@@ -15,7 +15,8 @@ class AccountService {
   // The repositories are not owned and must outlive the service.
   AccountService(CurrencyRepository* currencies, AccountRepository* accounts);
 
-  // The name must not be blank; the currency must be known.
+  // The name must not be blank and not used by another account; the currency
+  // must be known.
   [[nodiscard]] Result<Account> Create(const NewAccount& account);
 
   // An archived account keeps its history but gets no new operations.

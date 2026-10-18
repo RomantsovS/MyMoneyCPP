@@ -6,6 +6,7 @@ include(EmbedMigrations)
 # Each new schema version is one more file here: 0002_..., 0003_...
 set(mymoney_migration_scripts
   migrations/0001_initial.sql
+  migrations/0002_unique_names.sql
 )
 mymoney_embed_migrations(
   OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/migration_scripts.cpp"
@@ -14,6 +15,7 @@ mymoney_embed_migrations(
 add_library(mymoney_storage STATIC
   migrations.cpp
   migrations.h
+  query_helpers.h
   sqlite_account_repository.cpp
   sqlite_account_repository.h
   sqlite_category_repository.cpp

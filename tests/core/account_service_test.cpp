@@ -33,6 +33,23 @@ TEST_F(AccountServiceTest, RejectsBlankName) {
   EXPECT_EQ(account.error().code, ErrorCode::kInvalidArgument);
 }
 
+TEST_F(AccountServiceTest, RejectsDuplicateName) {
+  AddAccount("Cash EUR");
+
+  const Result<Account> account =
+      account_service_.Create({.name = "Cash EUR", .currency = kUsd});
+
+  ASSERT_FALSE(account.has_value());
+  EXPECT_EQ(account.error().code, ErrorCode::kRuleViolation);
+}
+
+TEST_F(AccountServiceTest, NamesAreCaseSensitive) {
+  AddAccount("Cash EUR");
+
+  EXPECT_TRUE(account_service_.Create({.name = "cash eur", .currency = kEur})
+                  .has_value());
+}
+
 TEST_F(AccountServiceTest, RejectsUnknownCurrency) {
   const Result<Account> account = account_service_.Create(
       {.name = "Yen wallet", .currency = CurrencyCode("JPY")});

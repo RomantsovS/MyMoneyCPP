@@ -18,7 +18,11 @@ CategoryService::CategoryService(CategoryRepository* categories)
 }
 
 Result<Category> CategoryService::Create(const NewCategory& category) {
-  if (Status status = ValidateName(category.name, "category"); !status) {
+  if (Status status = ValidateName(category.name, "category").and_then([&] {
+        return CheckNameIsFree(categories_->GetByName(category.name),
+                               "category", category.name);
+      });
+      !status) {
     return std::unexpected(std::move(status).error());
   }
   if (!category.parent_id.has_value()) {

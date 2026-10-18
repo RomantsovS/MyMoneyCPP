@@ -35,6 +35,28 @@ TEST_F(CategoryServiceTest, RejectsBlankName) {
   EXPECT_EQ(category.error().code, ErrorCode::kInvalidArgument);
 }
 
+TEST_F(CategoryServiceTest, NamesAreUniqueAcrossTheWholeTree) {
+  const Category food = AddCategory("Food", CategoryKind::kExpense);
+  AddCategory("Other", CategoryKind::kExpense, food.id);
+
+  // Not as a root, not under another parent, not as an income category.
+  for (const NewCategory& duplicate : {
+           NewCategory{.name = "Other",
+                       .kind = CategoryKind::kExpense,
+                       .parent_id = std::nullopt},
+           NewCategory{.name = "Food",
+                       .kind = CategoryKind::kExpense,
+                       .parent_id = food.id},
+           NewCategory{.name = "Other",
+                       .kind = CategoryKind::kIncome,
+                       .parent_id = std::nullopt},
+       }) {
+    const Result<Category> category = category_service_.Create(duplicate);
+    ASSERT_FALSE(category.has_value()) << duplicate.name;
+    EXPECT_EQ(category.error().code, ErrorCode::kRuleViolation);
+  }
+}
+
 TEST_F(CategoryServiceTest, RejectsUnknownParent) {
   const Result<Category> category =
       category_service_.Create({.name = "Orphan",

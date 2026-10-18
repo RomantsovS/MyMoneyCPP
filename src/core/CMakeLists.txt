@@ -4,6 +4,8 @@ configure_file(version.cpp.in version.cpp @ONLY)
 
 add_library(mymoney_core STATIC
   account.h
+  amount_text.cpp
+  amount_text.h
   category.h
   check.cpp
   check.h
@@ -11,6 +13,8 @@ add_library(mymoney_core STATIC
   currency.h
   currency_code.cpp
   currency_code.h
+  date_text.cpp
+  date_text.h
   error.h
   money.h
   operation.cpp

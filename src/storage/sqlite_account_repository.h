@@ -1,6 +1,7 @@
 #ifndef MYMONEY_STORAGE_SQLITE_ACCOUNT_REPOSITORY_H_
 #define MYMONEY_STORAGE_SQLITE_ACCOUNT_REPOSITORY_H_
 
+#include <string_view>
 #include <vector>
 
 #include "core/account.h"
@@ -18,6 +19,7 @@ class SqliteAccountRepository final : public core::AccountRepository {
 
   core::Result<core::Account> Add(const core::NewAccount& account) override;
   core::Result<core::Account> Get(core::AccountId id) override;
+  core::Result<core::Account> GetByName(std::string_view name) override;
   core::Result<std::vector<core::Account>> List() override;
   core::Status SetArchived(core::AccountId id, bool archived) override;
 

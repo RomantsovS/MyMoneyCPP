@@ -1,10 +1,9 @@
 #include "storage/sqlite_account_repository.h"
 
 #include <cstdint>
-#include <expected>
 #include <format>
 #include <string>
-#include <utility>
+#include <string_view>
 #include <vector>
 
 #include "core/account.h"
@@ -12,6 +11,7 @@
 #include "core/currency_code.h"
 #include "core/error.h"
 #include "core/strong_id.h"
+#include "storage/query_helpers.h"
 #include "storage/sqlite/database.h"
 #include "storage/sqlite/statement.h"
 
@@ -32,9 +32,8 @@ core::Result<core::Account> ReadAccount(const sqlite::Statement& row) {
       });
 }
 
-std::unexpected<core::Error> NotFound(core::AccountId id) {
-  return core::MakeError(core::ErrorCode::kNotFound,
-                         std::format("no account with id {}", id.value()));
+std::string NotFoundMessage(core::AccountId id) {
+  return std::format("no account with id {}", id.value());
 }
 
 }  // namespace
@@ -58,31 +57,21 @@ core::Result<core::Account> SqliteAccountRepository::Add(
 }
 
 core::Result<core::Account> SqliteAccountRepository::Get(core::AccountId id) {
-  core::Result<sqlite::Statement> select =
-      db_->Prepare(std::format("{} WHERE id = ?1", kSelectAccount), id.value());
-  if (!select) {
-    return std::unexpected(std::move(select).error());
-  }
-  return select->Step().and_then(
-      [&](bool has_row) -> core::Result<core::Account> {
-        if (!has_row) {
-          return NotFound(id);
-        }
-        return ReadAccount(*select);
-      });
+  return internal::QueryOne(*db_,
+                            std::format("{} WHERE id = ?1", kSelectAccount),
+                            NotFoundMessage(id), ReadAccount, id.value());
+}
+
+core::Result<core::Account> SqliteAccountRepository::GetByName(
+    std::string_view name) {
+  return internal::QueryOne(
+      *db_, std::format("{} WHERE name = ?1", kSelectAccount),
+      std::format("no account named '{}'", name), ReadAccount, name);
 }
 
 core::Result<std::vector<core::Account>> SqliteAccountRepository::List() {
-  std::vector<core::Account> accounts;
-  return db_->Prepare(std::format("{} ORDER BY id", kSelectAccount))
-      .and_then([&](sqlite::Statement select) {
-        return select.ForEachRow([&](const sqlite::Statement& row) {
-          return ReadAccount(row).transform([&](core::Account account) {
-            accounts.push_back(std::move(account));
-          });
-        });
-      })
-      .transform([&] { return std::move(accounts); });
+  return internal::QueryAll<core::Account>(
+      *db_, std::format("{} ORDER BY id", kSelectAccount), ReadAccount);
 }
 
 core::Status SqliteAccountRepository::SetArchived(core::AccountId id,
@@ -92,7 +81,8 @@ core::Status SqliteAccountRepository::SetArchived(core::AccountId id,
             archived)
       .and_then([&]() -> core::Status {
         if (db_->ChangedRows() == 0) {
-          return NotFound(id);
+          return core::MakeError(core::ErrorCode::kNotFound,
+                                 NotFoundMessage(id));
         }
         return {};
       });

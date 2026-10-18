@@ -1,6 +1,7 @@
 #ifndef MYMONEY_CORE_REPOSITORIES_ACCOUNT_REPOSITORY_H_
 #define MYMONEY_CORE_REPOSITORIES_ACCOUNT_REPOSITORY_H_
 
+#include <string_view>
 #include <vector>
 
 #include "core/account.h"
@@ -19,6 +20,8 @@ class AccountRepository {
   [[nodiscard]] virtual Result<Account> Add(const NewAccount& account) = 0;
   // kNotFound if there is no account with this id.
   [[nodiscard]] virtual Result<Account> Get(AccountId id) = 0;
+  // Account names are unique (ADR-0014). kNotFound if there is none.
+  [[nodiscard]] virtual Result<Account> GetByName(std::string_view name) = 0;
   [[nodiscard]] virtual Result<std::vector<Account>> List() = 0;
   // kNotFound if there is no account with this id.
   [[nodiscard]] virtual Status SetArchived(AccountId id, bool archived) = 0;

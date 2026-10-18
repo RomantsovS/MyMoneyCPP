@@ -1,18 +1,17 @@
 #include "storage/sqlite_category_repository.h"
 
 #include <cstdint>
-#include <expected>
 #include <format>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 #include "core/category.h"
 #include "core/check.h"
 #include "core/error.h"
 #include "core/strong_id.h"
+#include "storage/query_helpers.h"
 #include "storage/sqlite/database.h"
 #include "storage/sqlite/statement.h"
 #include "storage/text_mapping.h"
@@ -61,33 +60,22 @@ core::Result<core::Category> SqliteCategoryRepository::Add(
 
 core::Result<core::Category> SqliteCategoryRepository::Get(
     core::CategoryId id) {
-  core::Result<sqlite::Statement> select = db_->Prepare(
-      std::format("{} WHERE id = ?1", kSelectCategory), id.value());
-  if (!select) {
-    return std::unexpected(std::move(select).error());
-  }
-  return select->Step().and_then(
-      [&](bool has_row) -> core::Result<core::Category> {
-        if (!has_row) {
-          return core::MakeError(
-              core::ErrorCode::kNotFound,
-              std::format("no category with id {}", id.value()));
-        }
-        return ReadCategory(*select);
-      });
+  return internal::QueryOne(*db_,
+                            std::format("{} WHERE id = ?1", kSelectCategory),
+                            std::format("no category with id {}", id.value()),
+                            ReadCategory, id.value());
+}
+
+core::Result<core::Category> SqliteCategoryRepository::GetByName(
+    std::string_view name) {
+  return internal::QueryOne(
+      *db_, std::format("{} WHERE name = ?1", kSelectCategory),
+      std::format("no category named '{}'", name), ReadCategory, name);
 }
 
 core::Result<std::vector<core::Category>> SqliteCategoryRepository::List() {
-  std::vector<core::Category> categories;
-  return db_->Prepare(std::format("{} ORDER BY id", kSelectCategory))
-      .and_then([&](sqlite::Statement select) {
-        return select.ForEachRow([&](const sqlite::Statement& row) {
-          return ReadCategory(row).transform([&](core::Category category) {
-            categories.push_back(std::move(category));
-          });
-        });
-      })
-      .transform([&] { return std::move(categories); });
+  return internal::QueryAll<core::Category>(
+      *db_, std::format("{} ORDER BY id", kSelectCategory), ReadCategory);
 }
 
 }  // namespace mymoney::storage

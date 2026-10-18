@@ -1,17 +1,16 @@
 #include "storage/sqlite_currency_repository.h"
 
 #include <cstdint>
-#include <expected>
 #include <format>
 #include <limits>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "core/check.h"
 #include "core/currency.h"
 #include "core/currency_code.h"
 #include "core/error.h"
+#include "storage/query_helpers.h"
 #include "storage/sqlite/database.h"
 #include "storage/sqlite/statement.h"
 
@@ -52,32 +51,16 @@ core::Status SqliteCurrencyRepository::Add(const core::Currency& currency) {
 
 core::Result<core::Currency> SqliteCurrencyRepository::Get(
     core::CurrencyCode code) {
-  core::Result<sqlite::Statement> select = db_->Prepare(
-      "SELECT code, minor_digits FROM currency WHERE code = ?1", code.code());
-  if (!select) {
-    return std::unexpected(std::move(select).error());
-  }
-  return select->Step().and_then(
-      [&](bool has_row) -> core::Result<core::Currency> {
-        if (!has_row) {
-          return core::MakeError(
-              core::ErrorCode::kNotFound,
-              std::format("unknown currency {}", code.code()));
-        }
-        return ReadCurrency(*select);
-      });
+  return internal::QueryOne(
+      *db_, "SELECT code, minor_digits FROM currency WHERE code = ?1",
+      std::format("unknown currency {}", code.code()), ReadCurrency,
+      code.code());
 }
 
 core::Result<std::vector<core::Currency>> SqliteCurrencyRepository::List() {
-  std::vector<core::Currency> currencies;
-  return db_->Prepare("SELECT code, minor_digits FROM currency ORDER BY code")
-      .and_then([&](sqlite::Statement select) {
-        return select.ForEachRow([&](const sqlite::Statement& row) {
-          return ReadCurrency(row).transform(
-              [&](core::Currency currency) { currencies.push_back(currency); });
-        });
-      })
-      .transform([&] { return std::move(currencies); });
+  return internal::QueryAll<core::Currency>(
+      *db_, "SELECT code, minor_digits FROM currency ORDER BY code",
+      ReadCurrency);
 }
 
 }  // namespace mymoney::storage

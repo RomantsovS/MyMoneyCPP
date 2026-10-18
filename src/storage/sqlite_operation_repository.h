@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstdint>
 #include <optional>
+#include <vector>
 
 #include "core/error.h"
 #include "core/operation.h"
@@ -24,6 +25,9 @@ class SqliteOperationRepository final : public core::OperationRepository {
   // Loads the operation and rebuilds it through the OperationDraft factories,
   // so a damaged row is reported (kStorage) instead of returned (ADR-0013).
   core::Result<core::Operation> Get(core::OperationId id) override;
+
+  core::Result<std::vector<core::Operation>> List(
+      const core::OperationFilter& filter) override;
 
   core::Result<std::int64_t> SumMovements(
       core::AccountId account_id,

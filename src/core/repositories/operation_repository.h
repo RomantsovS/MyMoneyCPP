@@ -4,12 +4,20 @@
 #include <chrono>
 #include <cstdint>
 #include <optional>
+#include <vector>
 
 #include "core/error.h"
 #include "core/operation.h"
 #include "core/strong_id.h"
 
 namespace mymoney::core {
+
+// Which operations List() returns; every part is optional (ADR-0014).
+struct OperationFilter {
+  std::optional<std::chrono::year_month_day> from;  // dated on or after
+  std::optional<std::chrono::year_month_day> to;    // dated on or before
+  std::optional<AccountId> account_id;              // that move money here
+};
 
 // Storage of operations and their movements. Implemented with SQLite in M2.
 // Validation is the job of OperationService; a repository only stores.
@@ -22,6 +30,11 @@ class OperationRepository {
   [[nodiscard]] virtual Result<Operation> Add(const OperationDraft& draft) = 0;
   // kNotFound if there is no operation with this id.
   [[nodiscard]] virtual Result<Operation> Get(OperationId id) = 0;
+
+  // The operations matching `filter`, ordered by date, then by id (the order
+  // in which they were entered).
+  [[nodiscard]] virtual Result<std::vector<Operation>> List(
+      const OperationFilter& filter) = 0;
 
   // The sum of all movement amounts of an account, in minor units of the
   // account's currency, for operations dated on or before `up_to` (all

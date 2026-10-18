@@ -452,12 +452,22 @@ Each milestone is small enough for a few evenings. "Learn" lists the topics we d
   on an existing DB are a no-op.
 - **Decisions:** D6 ✔, D7 ✔ — design in [ADR-0013](adr/0013-storage-design.md).
 
-### M3 — CLI
+### M3 — CLI — ✅ done 2026-10-18
 - **Build:** `mymoney_cli` commands: accounts, categories, add operation, journal, balances,
   income/expense report.
 - **Learn:** command-line design, argument parsing (D22), text tables, exit codes, composition root.
 - **Done when:** you can run a test month of your finances through the CLI only.
 - **Decisions:** D22 ✔ — design in [ADR-0014](adr/0014-cli-design.md).
+
+### M3b — Category groups (next)
+- **Decided 2026-10-18 (option B, "folders and files"):** a category *group* only contains
+  categories and never has operations; a *category* has operations and never has children.
+  Groups exist only at the root (max depth 2); a category is at the root or inside a group of
+  the same kind; names are unique across groups and categories.
+- **Build:** `Category::is_group`; service rules; migration `0003` (column + triggers that
+  refuse operations on groups and children under non-groups); CLI `group add`,
+  `category add ... --group NAME` (CLI syntax still to be confirmed).
+- **To do first:** ADR-0015.
 
 ### M4 — First UI: accounts and balances
 - **Build:** Qt Quick app with accounts page (list with balances, total), add/edit account.

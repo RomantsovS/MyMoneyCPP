@@ -1,6 +1,7 @@
 #ifndef MYMONEY_STORAGE_SQLITE_CATEGORY_REPOSITORY_H_
 #define MYMONEY_STORAGE_SQLITE_CATEGORY_REPOSITORY_H_
 
+#include <string_view>
 #include <vector>
 
 #include "core/category.h"
@@ -18,6 +19,7 @@ class SqliteCategoryRepository final : public core::CategoryRepository {
 
   core::Result<core::Category> Add(const core::NewCategory& category) override;
   core::Result<core::Category> Get(core::CategoryId id) override;
+  core::Result<core::Category> GetByName(std::string_view name) override;
   core::Result<std::vector<core::Category>> List() override;
 
  private:

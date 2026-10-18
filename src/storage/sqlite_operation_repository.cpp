@@ -15,6 +15,7 @@
 #include "core/money.h"
 #include "core/operation.h"
 #include "core/strong_id.h"
+#include "storage/query_helpers.h"
 #include "storage/sqlite/database.h"
 #include "storage/sqlite/statement.h"
 #include "storage/sqlite/transaction.h"
@@ -197,6 +198,43 @@ core::Result<core::Operation> SqliteOperationRepository::Get(
     return Corrupt(id, draft.error().message);
   }
   return core::Operation{.id = id, .draft = std::move(*draft)};
+}
+
+core::Result<std::vector<core::Operation>> SqliteOperationRepository::List(
+    const core::OperationFilter& filter) {
+  // Step 1: the ids, in journal order. Every filter part is optional: a NULL
+  // parameter makes its condition true.
+  const core::Result<std::vector<core::OperationId>> ids =
+      internal::QueryAll<core::OperationId>(
+          *db_,
+          "SELECT o.id FROM operation o "
+          "WHERE (?1 IS NULL OR o.date >= ?1) AND (?2 IS NULL OR o.date <= ?2) "
+          "AND (?3 IS NULL OR EXISTS (SELECT 1 FROM movement m "
+          "WHERE m.operation_id = o.id AND m.account_id = ?3)) "
+          "ORDER BY o.date, o.id",
+          [](const sqlite::Statement& row) -> core::Result<core::OperationId> {
+            return core::OperationId(row.Column<std::int64_t>(0));
+          },
+          filter.from.transform(DateToText), filter.to.transform(DateToText),
+          filter.account_id.transform(
+              [](core::AccountId id) { return id.value(); }));
+  if (!ids) {
+    return std::unexpected(ids.error());
+  }
+
+  // Step 2: load each one through Get(), which validates it again.
+  // (One query per operation - fast enough for a personal database; can
+  // become a single JOIN if a journal ever gets slow.)
+  std::vector<core::Operation> operations;
+  operations.reserve(ids->size());
+  for (const core::OperationId id : *ids) {
+    core::Result<core::Operation> operation = Get(id);
+    if (!operation) {
+      return std::unexpected(std::move(operation).error());
+    }
+    operations.push_back(std::move(*operation));
+  }
+  return operations;
 }
 
 core::Result<std::int64_t> SqliteOperationRepository::SumMovements(

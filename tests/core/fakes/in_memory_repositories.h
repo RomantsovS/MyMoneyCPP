@@ -12,6 +12,7 @@
 #include <format>
 #include <map>
 #include <optional>
+#include <string_view>
 #include <vector>
 
 #include "core/account.h"
@@ -64,6 +65,11 @@ class InMemoryCurrencyRepository final : public CurrencyRepository {
 class InMemoryAccountRepository final : public AccountRepository {
  public:
   Result<Account> Add(const NewAccount& account) override {
+    // Like the UNIQUE index in SQLite (migration 0002): a storage error.
+    if (GetByName(account.name).has_value()) {
+      return MakeError(ErrorCode::kStorage,
+                       "UNIQUE constraint failed: account.name");
+    }
     const AccountId id(next_id_++);
     const Account stored{.id = id,
                          .name = account.name,
@@ -79,6 +85,16 @@ class InMemoryAccountRepository final : public AccountRepository {
       return NotFound(id);
     }
     return it->second;
+  }
+
+  Result<Account> GetByName(std::string_view name) override {
+    for (const auto& [id, account] : accounts_) {
+      if (account.name == name) {
+        return account;
+      }
+    }
+    return MakeError(ErrorCode::kNotFound,
+                     std::format("no account named '{}'", name));
   }
 
   Result<std::vector<Account>> List() override {
@@ -111,6 +127,11 @@ class InMemoryAccountRepository final : public AccountRepository {
 class InMemoryCategoryRepository final : public CategoryRepository {
  public:
   Result<Category> Add(const NewCategory& category) override {
+    // Like the UNIQUE index in SQLite (migration 0002): a storage error.
+    if (GetByName(category.name).has_value()) {
+      return MakeError(ErrorCode::kStorage,
+                       "UNIQUE constraint failed: category.name");
+    }
     const CategoryId id(next_id_++);
     const Category stored{.id = id,
                           .name = category.name,
@@ -127,6 +148,16 @@ class InMemoryCategoryRepository final : public CategoryRepository {
                        std::format("no category with id {}", id.value()));
     }
     return it->second;
+  }
+
+  Result<Category> GetByName(std::string_view name) override {
+    for (const auto& [id, category] : categories_) {
+      if (category.name == name) {
+        return category;
+      }
+    }
+    return MakeError(ErrorCode::kNotFound,
+                     std::format("no category named '{}'", name));
   }
 
   Result<std::vector<Category>> List() override {
@@ -159,6 +190,29 @@ class InMemoryOperationRepository final : public OperationRepository {
                        std::format("no operation with id {}", id.value()));
     }
     return *it;
+  }
+
+  Result<std::vector<Operation>> List(const OperationFilter& filter) override {
+    std::vector<Operation> result;
+    for (const Operation& operation : operations_) {
+      const OperationDraft& draft = operation.draft;
+      if ((filter.from && draft.date() < *filter.from) ||
+          (filter.to && draft.date() > *filter.to)) {
+        continue;
+      }
+      if (filter.account_id &&
+          std::ranges::none_of(draft.movements(), [&](const Movement& m) {
+            return m.account_id == *filter.account_id;
+          })) {
+        continue;
+      }
+      result.push_back(operation);
+    }
+    // Stored in id order; a stable sort by date keeps that order per day.
+    std::ranges::stable_sort(result, {}, [](const Operation& operation) {
+      return operation.draft.date();
+    });
+    return result;
   }
 
   Result<std::int64_t> SumMovements(

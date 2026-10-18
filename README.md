@@ -8,20 +8,62 @@ This is a personal learning project. Design comes first — see
 [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md) and the decision records in
 [`docs/adr/`](docs/adr/).
 
-**Status:** M2 (storage) done — all data is stored in SQLite through an own C++23 wrapper,
-with schema migrations; 90 unit tests on Windows, Linux and (build only) Android.
-Next: M3, the command-line interface.
+**Status:** M3 (command-line interface) done — all data can be entered and viewed with
+mymoney-cli; 124 unit tests on Windows and Linux. Next: category groups, then the Qt UI (M4).
 
 ## Project layout
 
 | Path | Target | What |
 |---|---|---|
 | `src/core/` | `mymoney_core` | domain logic, pure C++23 (no Qt) |
-| `src/cli/` | `mymoney_cli` → `mymoney-cli` | command-line interface, pure C++23, desktop only |
+| `src/storage/` | `mymoney_storage` | SQLite storage, schema migrations, pure C++23 |
+| `src/cli/` | `mymoney_cli_lib`, `mymoney_cli` → `mymoney-cli` | command-line interface, pure C++23, desktop only |
 | `src/ui/` | `mymoney_ui` | QML module `MyMoney.UI` |
 | `src/app/` | `mymoney_app` → `MyMoney` | Qt Quick application (Android, Windows, Linux) |
-| `tests/` | `mymoney_core_tests` | GoogleTest unit tests, desktop only |
-| `cmake/` | — | compiler options, dependencies |
+| `tests/` | `mymoney_{core,storage,cli}_tests` | GoogleTest unit tests, desktop only |
+| `cmake/` | — | compiler options, dependencies, migration embedding |
+
+## Using the CLI
+
+A complete session, starting from an empty database:
+
+```
+mymoney-cli currency add EUR --digits 2
+mymoney-cli currency add USD --digits 2
+
+mymoney-cli account add "Card EUR" --currency EUR
+mymoney-cli account add "Cash EUR" --currency EUR
+mymoney-cli account add "Cash USD" --currency USD
+
+mymoney-cli category add Salary --kind income
+mymoney-cli category add Food --kind expense
+mymoney-cli category add Restaurants --kind expense --parent Food
+
+mymoney-cli income "Card EUR" Salary 3000 --date 2026-10-01
+mymoney-cli transfer "Card EUR" "Cash EUR" 200 --date 2026-10-02
+mymoney-cli transfer "Card EUR" "Cash USD" 100 --amount-in 108.50 --date 2026-10-03
+mymoney-cli expense "Cash EUR" Restaurants 12.50 --comment lunch --date 2026-10-18
+
+mymoney-cli journal --from 2026-10-01 --to 2026-10-31
+mymoney-cli balance
+```
+
+`balance` then shows:
+
+```
+Card EUR   2700.00 EUR
+Cash EUR    187.50 EUR
+Cash USD    108.50 USD
+Total EUR  2887.50 EUR
+Total USD   108.50 USD
+```
+
+`mymoney-cli --help` lists all commands. Accounts and categories are referred to by name
+(names are unique). The database is `%LOCALAPPDATA%\MyMoney\mymoney.sqlite` on Windows and
+`~/.local/share/MyMoney/mymoney.sqlite` on Linux; `--db FILE` uses another one.
+
+**PowerShell:** quote amounts written with a comma — `"12,50"`. Unquoted, PowerShell
+treats the comma as its array operator and passes `12` and `50` as two arguments.
 
 ## Requirements
 

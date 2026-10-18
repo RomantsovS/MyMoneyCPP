@@ -1,34 +1,20 @@
 #include "storage/text_mapping.h"
 
 #include <chrono>
+#include <expected>
 #include <format>
-#include <optional>
 #include <source_location>
 #include <string>
 #include <string_view>
 
 #include "core/category.h"
 #include "core/check.h"
+#include "core/date_text.h"
 #include "core/error.h"
 #include "core/operation.h"
 
 namespace mymoney::storage {
 namespace {
-
-// Parses a non-negative decimal number made of digits only ("0042" -> 42).
-std::optional<int> ParseDigits(std::string_view text) {
-  if (text.empty()) {
-    return std::nullopt;
-  }
-  int value = 0;
-  for (const char c : text) {
-    if (c < '0' || c > '9') {
-      return std::nullopt;
-    }
-    value = (value * 10) + (c - '0');
-  }
-  return value;
-}
 
 std::unexpected<core::Error> BadText(std::string_view what,
                                      std::string_view text) {
@@ -39,33 +25,18 @@ std::unexpected<core::Error> BadText(std::string_view what,
 
 }  // namespace
 
+// The date format is defined once, in core (ADR-0014).
 std::string DateToText(std::chrono::year_month_day date) {
-  core::Check(date.ok(), "DateToText needs a valid date");
-  return std::format("{:04}-{:02}-{:02}", static_cast<int>(date.year()),
-                     static_cast<unsigned>(date.month()),
-                     static_cast<unsigned>(date.day()));
+  return core::FormatDate(date);
 }
 
 core::Result<std::chrono::year_month_day> DateFromText(std::string_view text) {
-  // Exactly "YYYY-MM-DD".
-  if (text.size() != 10 || text.substr(4, 1) != "-" ||
-      text.substr(7, 1) != "-") {
-    return BadText("date", text);
-  }
-  const std::optional<int> year = ParseDigits(text.substr(0, 4));
-  const std::optional<int> month = ParseDigits(text.substr(5, 2));
-  const std::optional<int> day = ParseDigits(text.substr(8, 2));
-  if (!year || !month || !day) {
-    return BadText("date", text);
-  }
-  const std::chrono::year_month_day date{
-      std::chrono::year{*year},
-      std::chrono::month{static_cast<unsigned>(*month)},
-      std::chrono::day{static_cast<unsigned>(*day)}};
-  if (!date.ok()) {  // e.g. "2026-02-30"
-    return BadText("date", text);
-  }
-  return date;
+  // A bad date read from the database is a storage problem, not bad input.
+  return core::ParseDate(text).or_else(
+      [&](const core::Error& /*error*/)
+          -> core::Result<std::chrono::year_month_day> {
+        return BadText("date", text);
+      });
 }
 
 std::string_view CategoryKindToText(core::CategoryKind kind) {

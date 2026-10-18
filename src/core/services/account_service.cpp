@@ -20,6 +20,10 @@ AccountService::AccountService(CurrencyRepository* currencies,
 
 Result<Account> AccountService::Create(const NewAccount& account) {
   return ValidateName(account.name, "account")
+      .and_then([&] {
+        return CheckNameIsFree(accounts_->GetByName(account.name), "account",
+                               account.name);
+      })
       .and_then([&] { return currencies_->Get(account.currency); })
       .and_then(
           [&](const Currency& /*known*/) { return accounts_->Add(account); });

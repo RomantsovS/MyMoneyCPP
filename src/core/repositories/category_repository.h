@@ -1,6 +1,7 @@
 #ifndef MYMONEY_CORE_REPOSITORIES_CATEGORY_REPOSITORY_H_
 #define MYMONEY_CORE_REPOSITORIES_CATEGORY_REPOSITORY_H_
 
+#include <string_view>
 #include <vector>
 
 #include "core/category.h"
@@ -19,6 +20,8 @@ class CategoryRepository {
   [[nodiscard]] virtual Result<Category> Add(const NewCategory& category) = 0;
   // kNotFound if there is no category with this id.
   [[nodiscard]] virtual Result<Category> Get(CategoryId id) = 0;
+  // Category names are unique (ADR-0014). kNotFound if there is none.
+  [[nodiscard]] virtual Result<Category> GetByName(std::string_view name) = 0;
   [[nodiscard]] virtual Result<std::vector<Category>> List() = 0;
 };
 

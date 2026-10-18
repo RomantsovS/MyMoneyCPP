@@ -13,8 +13,9 @@ class CategoryService {
   // The repository is not owned and must outlive the service.
   explicit CategoryService(CategoryRepository* categories);
 
-  // The name must not be blank. A child category needs an existing parent of
-  // the same kind, and the tree may not get deeper than kMaxCategoryDepth.
+  // The name must not be blank and not used by any other category (names are
+  // unique across the whole tree, ADR-0014). A child needs an existing parent
+  // of the same kind, and the tree may not get deeper than kMaxCategoryDepth.
   [[nodiscard]] Result<Category> Create(const NewCategory& category);
 
  private:
