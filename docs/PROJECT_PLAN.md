@@ -280,7 +280,7 @@ Installed and verified (2026-10-12/13):
 | Android NDK | 27.2.12479018 (clang 18.0.3, libc++) | Android C++ compiler |
 | Android emulator | AVD `Pixel6`, API 37, x86_64, host GPU, WHPX | testing on PC |
 | Git | 2.54 · GitHub `RomantsovS/MyMoneyCPP` | version control |
-| WSL2 | **Ubuntu 26.04.1 LTS** (distro `Ubuntu-26.04`, installed 2026-10-16, replaces 24.04), systemd, WSLg; Git 2.53. In apt but **not installed yet**: GCC 15.2, CMake **4.2.3**, Ninja (universe — after `apt update`), GDB | Linux builds |
+| WSL2 | **Ubuntu 26.04.1 LTS** (distro `Ubuntu-26.04`, installed 2026-10-16, replaces 24.04), systemd, WSLg; Git 2.53, GCC **15.2**, CMake **4.2.3**, Ninja 1.13.2 (installed; M2 builds and tests pass there) | Linux builds |
 
 To set up later:
 
@@ -443,7 +443,7 @@ Each milestone is small enough for a few evenings. "Learn" lists the topics we d
 - **Done when:** all business rules from ADR-0006 are covered by tests.
 - **Decisions:** D2 ✔, D3 ✔, D4 ✔, D5 ✔, D16 ✔, D23 ✔ — design in [ADR-0012](adr/0012-domain-model.md).
 
-### M2 — Storage
+### M2 — Storage — ✅ done 2026-10-18
 - **Build:** SQLite wrapper; migrations; repositories for currencies, accounts, categories,
   operations + movements; posting in one transaction.
 - **Learn:** SQLite C API, RAII for C handles, variadic templates for binding, SQL basics

@@ -53,6 +53,9 @@ CheckOptions:
   # Interfaces (e.g. AccountRepository) declare only "virtual ~X() = default;".
   # Requiring all five special members there adds noise without any benefit.
   cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor: true
+  # static_cast<void>(...) is our explicit way to say a result is ignored on
+  # purpose (e.g. ROLLBACK in a destructor, where an error cannot be handled).
+  bugprone-unused-return-value.AllowCastToVoid: true
   # We do not throw (ADR-0008). Exceptions the standard library may throw on
   # allocation failure or I/O, locale and formatting errors are fatal by design -
   # the same behaviour as with exceptions disabled - so they are not reported.

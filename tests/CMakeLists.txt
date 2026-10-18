@@ -2,6 +2,7 @@
 
 include(GoogleTest)
 
+# --- core ---------------------------------------------------------------------
 add_executable(mymoney_core_tests
   core/account_service_test.cpp
   core/balance_service_test.cpp
@@ -21,5 +22,17 @@ target_include_directories(mymoney_core_tests PRIVATE "${PROJECT_SOURCE_DIR}/tes
 # gmock_main provides main() and includes GoogleTest.
 target_link_libraries(mymoney_core_tests PRIVATE mymoney::core GTest::gmock_main)
 mymoney_target_defaults(mymoney_core_tests)
-
 gtest_discover_tests(mymoney_core_tests)
+
+# --- storage ------------------------------------------------------------------
+add_executable(mymoney_storage_tests
+  storage/migrations_test.cpp
+  storage/repository_contract_test.cpp
+  storage/sqlite_wrapper_test.cpp
+  storage/text_mapping_test.cpp
+)
+# The contract tests use the core fakes and test helpers.
+target_include_directories(mymoney_storage_tests PRIVATE "${PROJECT_SOURCE_DIR}/tests")
+target_link_libraries(mymoney_storage_tests PRIVATE mymoney::storage GTest::gmock_main)
+mymoney_target_defaults(mymoney_storage_tests)
+gtest_discover_tests(mymoney_storage_tests)

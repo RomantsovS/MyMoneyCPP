@@ -6,7 +6,8 @@ project(MyMoney
   VERSION 0.1.0
   DESCRIPTION "Personal finance tracker"
   HOMEPAGE_URL "https://github.com/RomantsovS/MyMoneyCPP"
-  LANGUAGES CXX)
+  # C only for the SQLite amalgamation (sqlite3.c); all our code is C++.
+  LANGUAGES C CXX)
 
 # The CLI and the tests are desktop tools; the Qt Quick app runs everywhere.
 if(ANDROID)
@@ -32,6 +33,7 @@ include(Dependencies)
 # every target created after it in this directory scope, and these targets must
 # not depend on Qt (ADR-0002).
 add_subdirectory(src/core)
+add_subdirectory(src/storage)
 
 if(MYMONEY_BUILD_CLI)
   add_subdirectory(src/cli)

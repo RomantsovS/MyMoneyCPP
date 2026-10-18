@@ -8,8 +8,9 @@ This is a personal learning project. Design comes first — see
 [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md) and the decision records in
 [`docs/adr/`](docs/adr/).
 
-**Status:** M1 (domain core) done — accounts, categories, operations and balances with all
-ledger rules, in pure C++23 with unit tests. Next: M2, storage with SQLite.
+**Status:** M2 (storage) done — all data is stored in SQLite through an own C++23 wrapper,
+with schema migrations; 90 unit tests on Windows, Linux and (build only) Android.
+Next: M3, the command-line interface.
 
 ## Project layout
 
