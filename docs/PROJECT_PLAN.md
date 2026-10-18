@@ -457,7 +457,7 @@ Each milestone is small enough for a few evenings. "Learn" lists the topics we d
   income/expense report.
 - **Learn:** command-line design, argument parsing (D22), text tables, exit codes, composition root.
 - **Done when:** you can run a test month of your finances through the CLI only.
-- **Decisions:** D22.
+- **Decisions:** D22 ✔ — design in [ADR-0014](adr/0014-cli-design.md).
 
 ### M4 — First UI: accounts and balances
 - **Build:** Qt Quick app with accounts page (list with balances, total), add/edit account.
@@ -536,7 +536,7 @@ translations (D19).
 | D19 | UI language(s) | M4 | ☐ |
 | D20 | How to record decisions | M0 | ☑ ADRs — [ADR-0001](adr/0001-record-decisions-as-adrs.md) |
 | D21 | Exchange rates and conversion | M7 | ◐ proposed, only the rate source open — [ADR-0009](adr/0009-exchange-rates-for-balance-reports.md) |
-| D22 | CLI argument parsing | M3 | ☐ CLI itself decided — [ADR-0010](adr/0010-cli-frontend.md) |
+| D22 | CLI argument parsing | M3 | ☑ hand-written parser + command table — [ADR-0014](adr/0014-cli-design.md) |
 | D23 | Logging in pure C++ layers | M1 | ☑ none; frontends log — [ADR-0012](adr/0012-domain-model.md) |
 | D24 | Build system and M0 skeleton | M0 | ☑ [ADR-0011](adr/0011-build-system-and-skeleton.md) |
 
