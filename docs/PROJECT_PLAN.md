@@ -439,7 +439,7 @@ Each milestone is small enough for a few evenings. "Learn" lists the topics we d
 - **Learn:** value types, `operator<=>`, `constexpr`, strong types, overflow-safe arithmetic,
   `std::expected`, interfaces and dependency injection without a framework, GoogleTest/GoogleMock.
 - **Done when:** all business rules from ADR-0006 are covered by tests.
-- **Decisions:** D2 ✔, D3 ✔, D4, D5 ✔, D16 ✔.
+- **Decisions:** D2 ✔, D3 ✔, D4 ✔, D5 ✔, D16 ✔, D23 ✔ — design in [ADR-0012](adr/0012-domain-model.md).
 
 ### M2 — Storage
 - **Build:** SQLite wrapper; migrations; repositories for currencies, accounts, categories,
@@ -516,7 +516,7 @@ translations (D19).
 | D1 | MVP scope | M0 | ☑ section 3 (2026-10-13) |
 | D2 | Ledger model | M1 | ☑ B, operations + movements — [ADR-0006](adr/0006-ledger-model-operations-and-movements.md) |
 | D3 | Multi-currency | M1 | ☑ yes — [ADR-0004](adr/0004-multi-currency-from-start.md), amended by D21 |
-| D4 | ID type | M1 | ☐ |
+| D4 | ID type | M1 | ☑ int64 from storage, strong ID types — [ADR-0012](adr/0012-domain-model.md) |
 | D5 | Qt in `core`? | M1 | ☑ no, pure C++23 — [ADR-0002](adr/0002-core-is-pure-cpp23.md) |
 | D6 | Storage technology and access | M2 | ☑ SQLite + own C++ wrapper — [ADR-0007](adr/0007-sqlite-with-own-cpp-wrapper.md) |
 | D7 | Migrations and date storage | M2 | ☐ |
@@ -535,7 +535,7 @@ translations (D19).
 | D20 | How to record decisions | M0 | ☑ ADRs — [ADR-0001](adr/0001-record-decisions-as-adrs.md) |
 | D21 | Exchange rates and conversion | M7 | ◐ proposed, only the rate source open — [ADR-0009](adr/0009-exchange-rates-for-balance-reports.md) |
 | D22 | CLI argument parsing | M3 | ☐ CLI itself decided — [ADR-0010](adr/0010-cli-frontend.md) |
-| D23 | Logging in pure C++ layers | M1 | ☐ |
+| D23 | Logging in pure C++ layers | M1 | ☑ none; frontends log — [ADR-0012](adr/0012-domain-model.md) |
 | D24 | Build system and M0 skeleton | M0 | ☑ [ADR-0011](adr/0011-build-system-and-skeleton.md) |
 
 ### Open decisions
