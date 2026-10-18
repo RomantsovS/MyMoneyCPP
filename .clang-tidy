@@ -50,6 +50,9 @@ ExtraArgs:
   - '-Wno-unused-command-line-argument'
 
 CheckOptions:
+  # Interfaces (e.g. AccountRepository) declare only "virtual ~X() = default;".
+  # Requiring all five special members there adds noise without any benefit.
+  cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor: true
   # We do not throw (ADR-0008). Exceptions the standard library may throw on
   # allocation failure or I/O, locale and formatting errors are fatal by design -
   # the same behaviour as with exceptions disabled - so they are not reported.

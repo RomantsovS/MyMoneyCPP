@@ -104,6 +104,8 @@ On the desktop it runs in a phone-sized window.
 ### 3.2 Later
 
 - **Balance history** in a chosen currency (not MVP — decided 2026-10-16).
+- **Account tags** — user-defined tags on accounts (e.g. "liquid") for grouping and totals.
+  There is deliberately no fixed account type: the name says what an account is.
 - **Labels** — tags on operations (e.g. "vacation 2026.08"), filter in reports. Not MVP, maybe never.
 - Charts (Qt Graphs).
 - Recurring / planned operations.
@@ -187,7 +189,7 @@ erDiagram
     OPERATION ||--|{ MOVEMENT      : "posts"
 
     CURRENCY      { text code PK "ISO 4217" int minor_digits "2 for cents" }
-    ACCOUNT       { int id PK  text name  text currency FK  int type  bool archived }
+    ACCOUNT       { int id PK  text name  text currency FK  bool archived }
     CATEGORY      { int id PK  text name  int kind "expense or income"  int parent_id FK }
     OPERATION     { int id PK  date date  int type "expense, income, transfer"  text comment }
     MOVEMENT      { int id PK  int operation_id FK  int account_id FK  int category_id FK "nullable"  int amount_minor "signed" }
@@ -433,7 +435,7 @@ Each milestone is small enough for a few evenings. "Learn" lists the topics we d
 - **Done when:** the same commit builds and runs on all targets; tests run in Qt Creator.
 - **Decisions:** D17 ✔, D18 ✔, D20 ✔, M0 build decisions ✔ ([ADR-0011](adr/0011-build-system-and-skeleton.md)).
 
-### M1 — Domain core
+### M1 — Domain core — ✅ done 2026-10-18
 - **Build:** `Money`, `CurrencyCode`, `Account`, `Category` (depth rule), `Operation` +
   `Movement` (shape rules), repository interfaces, `OperationService` with in-memory fakes.
 - **Learn:** value types, `operator<=>`, `constexpr`, strong types, overflow-safe arithmetic,

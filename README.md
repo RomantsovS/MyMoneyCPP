@@ -8,8 +8,8 @@ This is a personal learning project. Design comes first — see
 [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md) and the decision records in
 [`docs/adr/`](docs/adr/).
 
-**Status:** M0 (project skeleton) done — builds and runs on Windows, the Android emulator and
-a Pixel 6. Next: M1, the domain core.
+**Status:** M1 (domain core) done — accounts, categories, operations and balances with all
+ledger rules, in pure C++23 with unit tests. Next: M2, storage with SQLite.
 
 ## Project layout
 
