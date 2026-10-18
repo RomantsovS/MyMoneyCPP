@@ -450,7 +450,7 @@ Each milestone is small enough for a few evenings. "Learn" lists the topics we d
   (`CREATE TABLE`, `JOIN`, `GROUP BY`, `WITH RECURSIVE`), transactions, `PRAGMA user_version`.
 - **Done when:** tests post operations into `:memory:` and read correct balances; migrations
   on an existing DB are a no-op.
-- **Decisions:** D6 ✔, D7.
+- **Decisions:** D6 ✔, D7 ✔ — design in [ADR-0013](adr/0013-storage-design.md).
 
 ### M3 — CLI
 - **Build:** `mymoney_cli` commands: accounts, categories, add operation, journal, balances,
@@ -521,7 +521,7 @@ translations (D19).
 | D4 | ID type | M1 | ☑ int64 from storage, strong ID types — [ADR-0012](adr/0012-domain-model.md) |
 | D5 | Qt in `core`? | M1 | ☑ no, pure C++23 — [ADR-0002](adr/0002-core-is-pure-cpp23.md) |
 | D6 | Storage technology and access | M2 | ☑ SQLite + own C++ wrapper — [ADR-0007](adr/0007-sqlite-with-own-cpp-wrapper.md) |
-| D7 | Migrations and date storage | M2 | ☐ |
+| D7 | Migrations and date storage | M2 | ☑ embedded `.sql` files + `user_version`; ISO TEXT dates — [ADR-0013](adr/0013-storage-design.md) |
 | D8 | Test framework | M1 | ☑ GoogleTest — [ADR-0003](adr/0003-googletest.md) |
 | D9 | C++ standard | M0 | ☑ C++23; GCC 15 on Linux — [ADR-0002](adr/0002-core-is-pure-cpp23.md) |
 | D10 | Visual style | M4 | ☐ |
