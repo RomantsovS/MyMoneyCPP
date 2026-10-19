@@ -39,17 +39,27 @@ class ServicesTestBase : public ::testing::Test {
         .value();
   }
 
+  // A category at the root, or inside the group `group_id`.
   Category AddCategory(std::string name, CategoryKind kind,
-                       std::optional<CategoryId> parent_id = std::nullopt) {
+                       std::optional<CategoryId> group_id = std::nullopt) {
     return category_service_
-        .Create({.name = std::move(name), .kind = kind, .parent_id = parent_id})
+        .Create({.name = std::move(name), .kind = kind, .parent_id = group_id})
+        .value();
+  }
+
+  Category AddGroup(std::string name, CategoryKind kind) {
+    return category_service_
+        .Create({.name = std::move(name),
+                 .kind = kind,
+                 .parent_id = std::nullopt,
+                 .is_group = true})
         .value();
   }
 
   InMemoryCurrencyRepository currencies_;
   InMemoryAccountRepository accounts_;
   InMemoryCategoryRepository categories_;
-  InMemoryOperationRepository operations_;
+  InMemoryOperationRepository operations_{&categories_};
 
   AccountService account_service_{&currencies_, &accounts_};
   CategoryService category_service_{&categories_};

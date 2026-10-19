@@ -36,7 +36,7 @@ struct InMemoryRepositories {
   InMemoryCurrencyRepository currencies;
   InMemoryAccountRepository accounts;
   InMemoryCategoryRepository categories;
-  InMemoryOperationRepository operations;
+  InMemoryOperationRepository operations{&categories};
 };
 
 struct SqliteRepositories {
@@ -62,11 +62,19 @@ class RepositoryContractTest : public ::testing::Test {
         .value();
   }
 
-  Category AddCategory(std::string_view name, CategoryKind kind) {
+  Category AddCategory(std::string_view name, CategoryKind kind,
+                       std::optional<CategoryId> group_id = std::nullopt) {
+    return repos_.categories
+        .Add({.name = std::string(name), .kind = kind, .parent_id = group_id})
+        .value();
+  }
+
+  Category AddGroup(std::string_view name, CategoryKind kind) {
     return repos_.categories
         .Add({.name = std::string(name),
               .kind = kind,
-              .parent_id = std::nullopt})
+              .parent_id = std::nullopt,
+              .is_group = true})
         .value();
   }
 
@@ -198,19 +206,70 @@ TYPED_TEST(RepositoryContractTest, ArchivingUnknownAccountIsNotFound) {
 // --- Categories
 // ---------------------------------------------------------------
 
-TYPED_TEST(RepositoryContractTest, StoresCategoryTree) {
-  const Category food = this->AddCategory("Food", CategoryKind::kExpense);
+TYPED_TEST(RepositoryContractTest, StoresGroupsAndCategories) {
+  const Category food = this->AddGroup("Food", CategoryKind::kExpense);
   const Result<Category> restaurants =
       this->repos_.categories.Add({.name = "Restaurants",
                                    .kind = CategoryKind::kExpense,
                                    .parent_id = food.id});
+  const Category transport =
+      this->AddCategory("Transport", CategoryKind::kExpense);
 
   ASSERT_TRUE(restaurants.has_value()) << restaurants.error().message;
+  EXPECT_TRUE(food.is_group);
+  EXPECT_FALSE(restaurants->is_group);
   EXPECT_EQ(this->repos_.categories.Get(food.id), food);
   EXPECT_EQ(this->repos_.categories.Get(restaurants->id), restaurants);
   EXPECT_EQ(restaurants->parent_id, food.id);
   EXPECT_EQ(this->repos_.categories.List(),
-            (std::vector<Category>{food, *restaurants}));
+            (std::vector<Category>{food, *restaurants, transport}));
+}
+
+// The database defends the rules of ADR-0015 itself (migration 0003). The
+// services check them first, so a refusal here is a storage error.
+TYPED_TEST(RepositoryContractTest, StorageRejectsGroupWithAParent) {
+  const Category food = this->AddGroup("Food", CategoryKind::kExpense);
+
+  const Result<Category> group =
+      this->repos_.categories.Add({.name = "Snacks",
+                                   .kind = CategoryKind::kExpense,
+                                   .parent_id = food.id,
+                                   .is_group = true});
+
+  ASSERT_FALSE(group.has_value());
+  EXPECT_EQ(group.error().code, ErrorCode::kStorage);
+}
+
+TYPED_TEST(RepositoryContractTest, StorageRejectsCategoryOutsideAGroup) {
+  const Category transport =
+      this->AddCategory("Transport", CategoryKind::kExpense);
+  const Category salary = this->AddGroup("Salary", CategoryKind::kIncome);
+
+  // Under a category, under a group of the other kind, under nothing.
+  for (const CategoryId parent_id :
+       {transport.id, salary.id, CategoryId(999)}) {
+    const Result<Category> category =
+        this->repos_.categories.Add({.name = "Taxi",
+                                     .kind = CategoryKind::kExpense,
+                                     .parent_id = parent_id});
+
+    ASSERT_FALSE(category.has_value()) << parent_id.value();
+    EXPECT_EQ(category.error().code, ErrorCode::kStorage);
+  }
+}
+
+TYPED_TEST(RepositoryContractTest, StorageRejectsOperationOnAGroup) {
+  const Account cash = this->AddAccount("Cash EUR");
+  const Category food = this->AddGroup("Food", CategoryKind::kExpense);
+
+  const Result<Operation> operation = this->repos_.operations.Add(
+      OperationDraft::Expense(Date(2026, 10, 18), cash.id, food.id, Eur(100),
+                              "")
+          .value());
+
+  ASSERT_FALSE(operation.has_value());
+  EXPECT_EQ(operation.error().code, ErrorCode::kStorage);
+  EXPECT_EQ(this->repos_.operations.List({})->size(), 0U);
 }
 
 TYPED_TEST(RepositoryContractTest, FindsCategoryByName) {

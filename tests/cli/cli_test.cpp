@@ -38,9 +38,9 @@ class CliTest : public ::testing::Test {
     Ok({"account", "add", "Card EUR", "--currency", "EUR"});
     Ok({"account", "add", "Cash EUR", "--currency", "EUR"});
     Ok({"account", "add", "Наличные USD", "--currency", "USD"});
-    Ok({"category", "add", "Food", "--kind", "expense"});
-    Ok({"category", "add", "Restaurants", "--kind", "expense", "--parent",
-        "Food"});
+    Ok({"group", "add", "Food", "--kind", "expense"});
+    Ok({"category", "add", "Groceries", "--group", "Food"});
+    Ok({"category", "add", "Restaurants", "--group", "Food"});
     Ok({"category", "add", "Зарплата", "--kind", "income"});
   }
 
@@ -86,13 +86,13 @@ TEST_F(CliTest, RecordsAMonthAndShowsJournalAndBalances) {
 
 TEST_F(CliTest, JournalFiltersByPeriodAndAccount) {
   AddExampleData();
-  Ok({"expense", "Cash EUR", "Food", "5", "--date", "2026-09-30"});
-  Ok({"expense", "Card EUR", "Food", "7", "--date", "2026-10-05"});
+  Ok({"expense", "Cash EUR", "Groceries", "5", "--date", "2026-09-30"});
+  Ok({"expense", "Card EUR", "Groceries", "7", "--date", "2026-10-05"});
 
   EXPECT_EQ(Ok({"journal", "--from", "2026-10-01"}),
-            "2026-10-05  expense  Card EUR  Food  -7.00 EUR\n");
+            "2026-10-05  expense  Card EUR  Groceries  -7.00 EUR\n");
   EXPECT_EQ(Ok({"journal", "--account", "Cash EUR"}),
-            "2026-09-30  expense  Cash EUR  Food  -5.00 EUR\n");
+            "2026-09-30  expense  Cash EUR  Groceries  -5.00 EUR\n");
   EXPECT_EQ(Ok({"journal", "--to", "2026-01-01"}), "No operations.\n");
 }
 
@@ -106,26 +106,70 @@ TEST_F(CliTest, ListsCatalogData) {
             "Card EUR      EUR\n"
             "Cash EUR      EUR  archived\n"
             "Наличные USD  USD\n");
+  // Groups are marked; an empty group is listed too.
+  Ok({"group", "add", "Подарки", "--kind", "income"});
   EXPECT_EQ(Ok({"category", "list"}),
-            "Food           expense\n"
+            "Food           expense group\n"
+            "  Groceries    expense\n"
             "  Restaurants  expense\n"
-            "Зарплата       income\n");
+            "Зарплата       income\n"
+            "Подарки        income group\n");
+}
+
+TEST_F(CliTest, AddsGroupsAndCategories) {
+  Ok({"currency", "add", "EUR", "--digits", "2"});
+
+  EXPECT_EQ(Ok({"group", "add", "Food", "--kind", "expense"}),
+            "Added expense group 'Food'.\n");
+  // The kind comes from the group; giving the same one again is fine.
+  EXPECT_EQ(Ok({"category", "add", "Groceries", "--group", "Food"}),
+            "Added expense category 'Groceries' in group 'Food'.\n");
+  EXPECT_EQ(
+      Ok({"category", "add", "Snacks", "--group", "Food", "--kind", "expense"}),
+      "Added expense category 'Snacks' in group 'Food'.\n");
+  EXPECT_EQ(Ok({"category", "add", "Transport", "--kind", "expense"}),
+            "Added expense category 'Transport'.\n");
+}
+
+TEST_F(CliTest, OperationOnAGroupNamesItsCategories) {
+  AddExampleData();
+  Ok({"group", "add", "Home", "--kind", "expense"});
+
+  RunResult result = Run({"expense", "Card EUR", "Food", "5"});
+  EXPECT_EQ(result.exit_code, kExitError);
+  EXPECT_EQ(result.error,
+            "error: 'Food' is a group; use one of its categories: Groceries, "
+            "Restaurants\n");
+
+  result = Run({"expense", "Card EUR", "Home", "5"});
+  EXPECT_EQ(result.exit_code, kExitError);
+  EXPECT_EQ(result.error,
+            "error: 'Home' is a group without categories; add one with "
+            "'category add <name> --group \"Home\"'\n");
 }
 
 TEST_F(CliTest, DomainErrorsExitWithOne) {
   AddExampleData();
   Ok({"account", "archive", "Cash EUR"});
+  Ok({"category", "add", "Transport", "--kind", "expense"});
 
   for (const std::initializer_list<std::string_view> arguments : {
            std::initializer_list<std::string_view>{"account", "add", "Card EUR",
                                                    "--currency", "EUR"},
            {"category", "add", "Food", "--kind", "income"},
-           {"expense", "Card EUR", "Food", "12.505"},
+           {"group", "add", "Groceries", "--kind", "expense"},
+           {"group", "add", "Bills", "--kind", "spending"},
+           {"category", "add", "Taxi"},  // no --kind and no --group
+           {"category", "add", "Taxi", "--group", "Transport"},  // a category
+           {"category", "add", "Taxi", "--group", "Nowhere"},
+           {"category", "add", "Bonus", "--group", "Food", "--kind", "income"},
+           {"expense", "Card EUR", "Groceries", "12.505"},
            {"expense", "Card EUR", "Зарплата", "5"},
-           {"expense", "Nowhere", "Food", "5"},
-           {"expense", "Cash EUR", "Food", "5"},  // archived
+           {"expense", "Card EUR", "Food", "5"},  // a group
+           {"expense", "Nowhere", "Groceries", "5"},
+           {"expense", "Cash EUR", "Groceries", "5"},  // archived
            {"transfer", "Card EUR", "Наличные USD", "5"},
-           {"expense", "Card EUR", "Food", "5", "--date", "2026-02-30"},
+           {"expense", "Card EUR", "Groceries", "5", "--date", "2026-02-30"},
        }) {
     const RunResult result = Run(arguments);
     EXPECT_EQ(result.exit_code, kExitError) << *arguments.begin();
@@ -140,6 +184,8 @@ TEST_F(CliTest, UsageErrorsExitWithTwo) {
            {"frobnicate"},
            {"journal", "--color", "red"},
            {"account", "add", "Cash"},  // --currency is required
+           {"group", "add", "Bills"},   // --kind is required
+           {"category", "add", "Taxi", "--parent", "Food"},  // was M3 syntax
            {"expense", "Cash", "Food"},
            {"journal", "--from"},
        }) {

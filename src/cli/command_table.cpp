@@ -29,7 +29,7 @@ constexpr std::array<std::string_view, 2> kGlobalOptions{"help", "db"};
 constexpr std::array<std::string_view, 0> kNone{};
 constexpr std::array<std::string_view, 1> kDigits{"digits"};
 constexpr std::array<std::string_view, 1> kCurrency{"currency"};
-constexpr std::array<std::string_view, 2> kCategoryOptions{"kind", "parent"};
+constexpr std::array<std::string_view, 2> kCategoryOptions{"group", "kind"};
 constexpr std::array<std::string_view, 1> kKind{"kind"};
 constexpr std::array<std::string_view, 2> kOperationOptions{"date", "comment"};
 constexpr std::array<std::string_view, 3> kTransferOptions{"date", "comment",
@@ -39,7 +39,7 @@ constexpr std::array<std::string_view, 3> kJournalOptions{"from", "to",
 constexpr std::array<std::string_view, 1> kDate{"date"};
 
 // clang-format off
-const std::array<CommandSpec, 12> kCommands{{
+const std::array<CommandSpec, 13> kCommands{{
     {.name = "currency add", .usage = "<CODE> --digits N",
      .description = "Add a currency, e.g. EUR with 2 decimal places",
      .min_arguments = 1, .max_arguments = 1,
@@ -65,10 +65,15 @@ const std::array<CommandSpec, 12> kCommands{{
      .min_arguments = 1, .max_arguments = 1,
      .options = kNone, .required_options = kNone,
      .handler = commands::AccountArchive},
-    {.name = "category add", .usage = "<name> --kind expense|income [--parent NAME]",
-     .description = "Add a category (at most two levels)",
+    {.name = "group add", .usage = "<name> --kind expense|income",
+     .description = "Add a group of categories (always at the root, has no operations)",
      .min_arguments = 1, .max_arguments = 1,
-     .options = kCategoryOptions, .required_options = kKind,
+     .options = kKind, .required_options = kKind,
+     .handler = commands::GroupAdd},
+    {.name = "category add", .usage = "<name> [--group NAME] [--kind expense|income]",
+     .description = "Add a category, at the root or in a group (--kind: taken from the group)",
+     .min_arguments = 1, .max_arguments = 1,
+     .options = kCategoryOptions, .required_options = kNone,
      .handler = commands::CategoryAdd},
     {.name = "category list", .usage = "",
      .description = "Show the category tree",
@@ -165,7 +170,8 @@ std::string HelpText() {
                         spec.description);
   }
   text +=
-      "\nAccounts and categories are given by name; quote names with spaces.\n"
+      "\nAccounts, groups and categories are given by name; quote names with "
+      "spaces.\n"
       "Amounts: 12.50 or 12,50. Dates: YYYY-MM-DD (default: today).\n"
       "--db FILE: the database to use (default: your user data folder).\n"
       "<command> --help shows the usage of one command.\n";

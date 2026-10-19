@@ -7,6 +7,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include "cli/command_table.h"
 #include "cli/commands/command_helpers.h"
@@ -22,6 +23,34 @@
 namespace mymoney::cli::commands {
 namespace {
 
+// A group cannot have operations (ADR-0015). OperationService refuses it too;
+// this message also tells the user which categories to use instead.
+core::Status CheckNotAGroup(Context& context, const core::Category& category) {
+  if (!category.is_group) {
+    return {};
+  }
+  return context.categories->List().and_then(
+      [&](const std::vector<core::Category>& categories) -> core::Status {
+        std::string names;
+        for (const core::Category& child : categories) {
+          if (child.parent_id == category.id) {
+            names += names.empty() ? child.name : ", " + child.name;
+          }
+        }
+        if (names.empty()) {
+          return core::MakeError(
+              core::ErrorCode::kRuleViolation,
+              std::format("'{0}' is a group without categories; add one "
+                          "with 'category add <name> --group \"{0}\"'",
+                          category.name));
+        }
+        return core::MakeError(
+            core::ErrorCode::kRuleViolation,
+            std::format("'{}' is a group; use one of its categories: {}",
+                        category.name, names));
+      });
+}
+
 // expense and income: <account> <category> <amount> [--date] [--comment].
 core::Result<std::string> AddSingleMovement(Context& context,
                                             const CommandCall& call,
@@ -35,6 +64,9 @@ core::Result<std::string> AddSingleMovement(Context& context,
       context.categories->GetByName(call.arguments.at(1));
   if (!category) {
     return std::unexpected(category.error());
+  }
+  if (core::Status status = CheckNotAGroup(context, *category); !status) {
+    return std::unexpected(std::move(status).error());
   }
   MoneyText money(context.currencies);
   const core::Result<core::Money> amount =

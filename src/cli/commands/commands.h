@@ -23,6 +23,7 @@ core::Result<std::string> AccountList(Context& context,
 core::Result<std::string> AccountArchive(Context& context,
                                          const CommandCall& call);
 
+core::Result<std::string> GroupAdd(Context& context, const CommandCall& call);
 core::Result<std::string> CategoryAdd(Context& context,
                                       const CommandCall& call);
 core::Result<std::string> CategoryList(Context& context,

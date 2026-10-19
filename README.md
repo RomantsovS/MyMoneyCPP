@@ -8,8 +8,8 @@ This is a personal learning project. Design comes first — see
 [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md) and the decision records in
 [`docs/adr/`](docs/adr/).
 
-**Status:** M3 (command-line interface) done — all data can be entered and viewed with
-mymoney-cli; 124 unit tests on Windows and Linux. Next: category groups, then the Qt UI (M4).
+**Status:** M3b (category groups) done — all data can be entered and viewed with
+mymoney-cli; 135 unit tests on Windows and Linux. Next: the Qt UI (M4).
 
 ## Project layout
 
@@ -36,8 +36,9 @@ mymoney-cli account add "Cash EUR" --currency EUR
 mymoney-cli account add "Cash USD" --currency USD
 
 mymoney-cli category add Salary --kind income
-mymoney-cli category add Food --kind expense
-mymoney-cli category add Restaurants --kind expense --parent Food
+mymoney-cli group add Food --kind expense
+mymoney-cli category add Groceries --group Food
+mymoney-cli category add Restaurants --group Food
 
 mymoney-cli income "Card EUR" Salary 3000 --date 2026-10-01
 mymoney-cli transfer "Card EUR" "Cash EUR" 200 --date 2026-10-02

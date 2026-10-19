@@ -1,4 +1,4 @@
-// Commands for the "catalog" data: currencies, accounts, categories.
+// Commands for the "catalog" data: currencies, accounts, categories, groups.
 
 #include <expected>
 #include <format>
@@ -132,38 +132,60 @@ core::Result<std::string> AccountArchive(Context& context,
       });
 }
 
-// --- Categories
+// --- Categories and groups (ADR-0015)
 // ---------------------------------------------------------------
+
+core::Result<std::string> GroupAdd(Context& context, const CommandCall& call) {
+  return ParseKind(call.Option("kind").value_or(""))
+      .and_then([&](core::CategoryKind kind) {
+        return context.category_service->Create(
+            {.name = std::string(call.arguments.front()),
+             .kind = kind,
+             .parent_id = std::nullopt,
+             .is_group = true});
+      })
+      .transform([](const core::Category& group) {
+        return std::format("Added {} group '{}'.\n", KindText(group.kind),
+                           group.name);
+      });
+}
 
 core::Result<std::string> CategoryAdd(Context& context,
                                       const CommandCall& call) {
-  const core::Result<core::CategoryKind> kind =
-      ParseKind(call.Option("kind").value_or(""));
-  if (!kind) {
-    return std::unexpected(kind.error());
-  }
-  std::optional<core::Category> parent;
-  if (const std::optional<std::string_view> parent_name =
-          call.Option("parent")) {
+  std::optional<core::Category> group;
+  if (const std::optional<std::string_view> group_name = call.Option("group")) {
     core::Result<core::Category> found =
-        context.categories->GetByName(*parent_name);
+        context.categories->GetByName(*group_name);
     if (!found) {
       return std::unexpected(std::move(found).error());
     }
-    parent = std::move(*found);
+    group = std::move(*found);
+  }
+  // Inside a group, the kind is the group's; a different --kind is refused by
+  // CategoryService.
+  const std::optional<std::string_view> kind_text = call.Option("kind");
+  if (!kind_text.has_value() && !group.has_value()) {
+    return core::MakeError(core::ErrorCode::kInvalidArgument,
+                           "--kind is required for a category outside a group");
+  }
+  const core::Result<core::CategoryKind> kind =
+      kind_text.has_value() ? ParseKind(*kind_text)
+                            : core::Result<core::CategoryKind>(group->kind);
+  if (!kind) {
+    return std::unexpected(kind.error());
   }
 
   return context.category_service
       ->Create(
           {.name = std::string(call.arguments.front()),
            .kind = *kind,
-           .parent_id = parent.transform(
+           .parent_id = group.transform(
                [](const core::Category& category) { return category.id; })})
       .transform([&](const core::Category& category) {
-        return parent.has_value()
-                   ? std::format("Added {} category '{}' under '{}'.\n",
+        return group.has_value()
+                   ? std::format("Added {} category '{}' in group '{}'.\n",
                                  KindText(category.kind), category.name,
-                                 parent->name)
+                                 group->name)
                    : std::format("Added {} category '{}'.\n",
                                  KindText(category.kind), category.name);
       });
@@ -175,19 +197,25 @@ core::Result<std::string> CategoryList(Context& context,
       [](const std::vector<core::Category>& categories) {
         if (categories.empty()) {
           return std::string(
-              "No categories yet. Add one with 'category add'.\n");
+              "No categories yet. Add one with 'category add' or "
+              "'group add'.\n");
         }
-        // The tree: every root category, followed by its children indented.
+        // The tree: everything at the root, each group followed by its
+        // categories, indented.
+        const auto kind_column = [](const core::Category& category) {
+          return category.is_group
+                     ? std::format("{} group", KindText(category.kind))
+                     : std::string(KindText(category.kind));
+        };
         TextTable table({TextTable::Align::kLeft, TextTable::Align::kLeft});
         for (const core::Category& root : categories) {
           if (root.parent_id.has_value()) {
             continue;
           }
-          table.AddRow({root.name, std::string(KindText(root.kind))});
+          table.AddRow({root.name, kind_column(root)});
           for (const core::Category& child : categories) {
             if (child.parent_id == root.id) {
-              table.AddRow(
-                  {"  " + child.name, std::string(KindText(child.kind))});
+              table.AddRow({"  " + child.name, kind_column(child)});
             }
           }
         }

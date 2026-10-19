@@ -7,21 +7,19 @@
 
 namespace mymoney::core {
 
-// Creates categories, enforcing the category tree rules.
+// Creates categories and groups, enforcing the rules of ADR-0015.
 class CategoryService {
  public:
   // The repository is not owned and must outlive the service.
   explicit CategoryService(CategoryRepository* categories);
 
-  // The name must not be blank and not used by any other category (names are
-  // unique across the whole tree, ADR-0014). A child needs an existing parent
-  // of the same kind, and the tree may not get deeper than kMaxCategoryDepth.
+  // The name must not be blank and not used by any other category or group
+  // (names are unique across the whole tree, ADR-0014). A group is always at
+  // the root. A category with a parent needs an existing group of the same
+  // kind as that parent.
   [[nodiscard]] Result<Category> Create(const NewCategory& category);
 
  private:
-  // Depth of an existing category: 1 for a root category.
-  [[nodiscard]] Result<int> DepthOf(const Category& category);
-
   CategoryRepository* categories_;
 };
 

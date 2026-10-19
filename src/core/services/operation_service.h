@@ -18,8 +18,9 @@ class OperationService {
                    OperationRepository* operations);
 
   // For every movement: the account exists, is not archived and has the
-  // movement's currency; the category exists and matches the operation type
-  // (expense or income). Nothing is stored if any check fails.
+  // movement's currency; the category exists, is not a group (ADR-0015) and
+  // matches the operation type (expense or income). Nothing is stored if any
+  // check fails.
   [[nodiscard]] Result<Operation> Post(const OperationDraft& draft);
 
  private:

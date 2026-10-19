@@ -15,35 +15,50 @@ namespace {
 
 using CategoryServiceTest = ServicesTestBase;
 
-TEST_F(CategoryServiceTest, CreatesRootAndChildCategories) {
-  const Category food = AddCategory("Food", CategoryKind::kExpense);
+TEST_F(CategoryServiceTest, CreatesGroupsAndCategories) {
+  const Category food = AddGroup("Food", CategoryKind::kExpense);
   const Result<Category> restaurants =
       category_service_.Create({.name = "Restaurants",
                                 .kind = CategoryKind::kExpense,
                                 .parent_id = food.id});
+  const Category transport = AddCategory("Transport", CategoryKind::kExpense);
 
   ASSERT_TRUE(restaurants.has_value()) << restaurants.error().message;
+  EXPECT_TRUE(food.is_group);
   EXPECT_EQ(food.parent_id, std::nullopt);
+  EXPECT_FALSE(restaurants->is_group);
   EXPECT_EQ(restaurants->parent_id, food.id);
+  EXPECT_FALSE(transport.is_group);
+  EXPECT_EQ(transport.parent_id, std::nullopt);
 }
 
 TEST_F(CategoryServiceTest, RejectsBlankName) {
-  const Result<Category> category = category_service_.Create(
-      {.name = "", .kind = CategoryKind::kExpense, .parent_id = std::nullopt});
+  for (const bool is_group : {false, true}) {
+    const Result<Category> category =
+        category_service_.Create({.name = "",
+                                  .kind = CategoryKind::kExpense,
+                                  .parent_id = std::nullopt,
+                                  .is_group = is_group});
 
-  ASSERT_FALSE(category.has_value());
-  EXPECT_EQ(category.error().code, ErrorCode::kInvalidArgument);
+    ASSERT_FALSE(category.has_value());
+    EXPECT_EQ(category.error().code, ErrorCode::kInvalidArgument);
+  }
 }
 
-TEST_F(CategoryServiceTest, NamesAreUniqueAcrossTheWholeTree) {
-  const Category food = AddCategory("Food", CategoryKind::kExpense);
+TEST_F(CategoryServiceTest, NamesAreUniqueAcrossGroupsAndCategories) {
+  const Category food = AddGroup("Food", CategoryKind::kExpense);
   AddCategory("Other", CategoryKind::kExpense, food.id);
 
-  // Not as a root, not under another parent, not as an income category.
+  // Not as a root category, not as a group, not inside the group, not as an
+  // income category.
   for (const NewCategory& duplicate : {
            NewCategory{.name = "Other",
                        .kind = CategoryKind::kExpense,
                        .parent_id = std::nullopt},
+           NewCategory{.name = "Other",
+                       .kind = CategoryKind::kExpense,
+                       .parent_id = std::nullopt,
+                       .is_group = true},
            NewCategory{.name = "Food",
                        .kind = CategoryKind::kExpense,
                        .parent_id = food.id},
@@ -57,7 +72,7 @@ TEST_F(CategoryServiceTest, NamesAreUniqueAcrossTheWholeTree) {
   }
 }
 
-TEST_F(CategoryServiceTest, RejectsUnknownParent) {
+TEST_F(CategoryServiceTest, RejectsUnknownGroup) {
   const Result<Category> category =
       category_service_.Create({.name = "Orphan",
                                 .kind = CategoryKind::kExpense,
@@ -67,8 +82,8 @@ TEST_F(CategoryServiceTest, RejectsUnknownParent) {
   EXPECT_EQ(category.error().code, ErrorCode::kNotFound);
 }
 
-TEST_F(CategoryServiceTest, ChildMustHaveTheKindOfItsParent) {
-  const Category salary = AddCategory("Salary", CategoryKind::kIncome);
+TEST_F(CategoryServiceTest, CategoryMustHaveTheKindOfItsGroup) {
+  const Category salary = AddGroup("Salary", CategoryKind::kIncome);
   const Result<Category> category =
       category_service_.Create({.name = "Taxes",
                                 .kind = CategoryKind::kExpense,
@@ -78,19 +93,37 @@ TEST_F(CategoryServiceTest, ChildMustHaveTheKindOfItsParent) {
   EXPECT_EQ(category.error().code, ErrorCode::kRuleViolation);
 }
 
-TEST_F(CategoryServiceTest, TreeIsAtMostTwoLevelsDeep) {
-  const Category food = AddCategory("Food", CategoryKind::kExpense);
+TEST_F(CategoryServiceTest, OnlyAGroupCanContainCategories) {
+  const Category transport = AddCategory("Transport", CategoryKind::kExpense);
+  const Category food = AddGroup("Food", CategoryKind::kExpense);
   const Category restaurants =
       AddCategory("Restaurants", CategoryKind::kExpense, food.id);
 
-  const Result<Category> lunch =
-      category_service_.Create({.name = "Lunch",
-                                .kind = CategoryKind::kExpense,
-                                .parent_id = restaurants.id});
+  // Neither under a root category nor under a category inside a group.
+  for (const CategoryId parent_id : {transport.id, restaurants.id}) {
+    const Result<Category> category =
+        category_service_.Create({.name = "Taxi",
+                                  .kind = CategoryKind::kExpense,
+                                  .parent_id = parent_id});
 
-  ASSERT_FALSE(lunch.has_value());
-  EXPECT_EQ(lunch.error().code, ErrorCode::kRuleViolation);
-  EXPECT_EQ(categories_.size(), 2U);  // nothing was stored
+    ASSERT_FALSE(category.has_value());
+    EXPECT_EQ(category.error().code, ErrorCode::kRuleViolation);
+  }
+  EXPECT_EQ(categories_.size(), 3U);  // nothing was stored
+}
+
+TEST_F(CategoryServiceTest, GroupIsAlwaysAtTheRoot) {
+  const Category food = AddGroup("Food", CategoryKind::kExpense);
+
+  const Result<Category> group =
+      category_service_.Create({.name = "Snacks",
+                                .kind = CategoryKind::kExpense,
+                                .parent_id = food.id,
+                                .is_group = true});
+
+  ASSERT_FALSE(group.has_value());
+  EXPECT_EQ(group.error().code, ErrorCode::kRuleViolation);
+  EXPECT_EQ(categories_.size(), 1U);
 }
 
 }  // namespace

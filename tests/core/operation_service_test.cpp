@@ -103,6 +103,20 @@ TEST_F(OperationServiceTest, RejectsCategoryOfTheWrongKind) {
   EXPECT_EQ(operation.error().code, ErrorCode::kRuleViolation);
 }
 
+TEST_F(OperationServiceTest, RejectsGroupAsCategory) {
+  const Category bills = AddGroup("Bills", CategoryKind::kExpense);
+  const OperationDraft draft =
+      OperationDraft::Expense(Date(2026, 10, 18), cash_.id, bills.id, Eur(100),
+                              "")
+          .value();
+
+  const Result<Operation> operation = operation_service_.Post(draft);
+
+  ASSERT_FALSE(operation.has_value());
+  EXPECT_EQ(operation.error().code, ErrorCode::kRuleViolation);
+  EXPECT_EQ(operations_.size(), 0U);  // nothing was stored
+}
+
 TEST_F(OperationServiceTest, RejectsUnknownCategory) {
   const OperationDraft draft =
       OperationDraft::Income(Date(2026, 10, 18), cash_.id, CategoryId(999),

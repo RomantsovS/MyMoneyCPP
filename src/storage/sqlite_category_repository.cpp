@@ -20,9 +20,9 @@ namespace mymoney::storage {
 namespace {
 
 constexpr std::string_view kSelectCategory =
-    "SELECT id, name, kind, parent_id FROM category";
+    "SELECT id, name, kind, parent_id, is_group FROM category";
 
-// Reads a row (id, name, kind, parent_id).
+// Reads a row (id, name, kind, parent_id, is_group).
 core::Result<core::Category> ReadCategory(const sqlite::Statement& row) {
   return CategoryKindFromText(row.Column<std::string>(2))
       .transform([&](core::CategoryKind kind) {
@@ -32,7 +32,8 @@ core::Result<core::Category> ReadCategory(const sqlite::Statement& row) {
             .name = row.Column<std::string>(1),
             .kind = kind,
             .parent_id = parent_id.transform(
-                [](std::int64_t value) { return core::CategoryId(value); })};
+                [](std::int64_t value) { return core::CategoryId(value); }),
+            .is_group = row.Column<bool>(4)};
       });
 }
 
@@ -48,13 +49,17 @@ core::Result<core::Category> SqliteCategoryRepository::Add(
   const std::optional<std::int64_t> parent_id = category.parent_id.transform(
       [](core::CategoryId id) { return id.value(); });
   return db_
-      ->Run("INSERT INTO category (name, kind, parent_id) VALUES (?1, ?2, ?3)",
-            category.name, CategoryKindToText(category.kind), parent_id)
+      ->Run(
+          "INSERT INTO category (name, kind, parent_id, is_group) "
+          "VALUES (?1, ?2, ?3, ?4)",
+          category.name, CategoryKindToText(category.kind), parent_id,
+          category.is_group)
       .transform([&] {
         return core::Category{.id = core::CategoryId(db_->LastInsertId()),
                               .name = category.name,
                               .kind = category.kind,
-                              .parent_id = category.parent_id};
+                              .parent_id = category.parent_id,
+                              .is_group = category.is_group};
       });
 }
 

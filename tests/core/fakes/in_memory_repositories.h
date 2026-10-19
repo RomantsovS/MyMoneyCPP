@@ -132,11 +132,25 @@ class InMemoryCategoryRepository final : public CategoryRepository {
       return MakeError(ErrorCode::kStorage,
                        "UNIQUE constraint failed: category.name");
     }
+    // Like the triggers of migration 0003 (ADR-0015).
+    if (category.parent_id.has_value()) {
+      if (category.is_group) {
+        return MakeError(ErrorCode::kStorage, "a group must be at the root");
+      }
+      const auto parent = categories_.find(*category.parent_id);
+      if (parent == categories_.end() || !parent->second.is_group ||
+          parent->second.kind != category.kind) {
+        return MakeError(
+            ErrorCode::kStorage,
+            "a category can only be inside a group of the same kind");
+      }
+    }
     const CategoryId id(next_id_++);
     const Category stored{.id = id,
                           .name = category.name,
                           .kind = category.kind,
-                          .parent_id = category.parent_id};
+                          .parent_id = category.parent_id,
+                          .is_group = category.is_group};
     categories_.emplace(id, stored);
     return stored;
   }
@@ -177,7 +191,23 @@ class InMemoryCategoryRepository final : public CategoryRepository {
 
 class InMemoryOperationRepository final : public OperationRepository {
  public:
+  // Like the database, the fake knows the categories: it refuses movements on
+  // groups. `categories` is not owned and must outlive the fake.
+  explicit InMemoryOperationRepository(InMemoryCategoryRepository* categories)
+      : categories_(categories) {}
+
   Result<Operation> Add(const OperationDraft& draft) override {
+    // Like the trigger of migration 0003 (ADR-0015).
+    for (const Movement& movement : draft.movements()) {
+      if (movement.category_id.has_value()) {
+        const Result<Category> category =
+            categories_->Get(*movement.category_id);
+        if (category.has_value() && category->is_group) {
+          return MakeError(ErrorCode::kStorage,
+                           "a group cannot have operations");
+        }
+      }
+    }
     Operation stored{.id = OperationId(next_id_++), .draft = draft};
     operations_.push_back(stored);
     return stored;
@@ -236,6 +266,7 @@ class InMemoryOperationRepository final : public OperationRepository {
   [[nodiscard]] std::size_t size() const { return operations_.size(); }
 
  private:
+  InMemoryCategoryRepository* categories_;
   std::int64_t next_id_ = 1;
   std::vector<Operation> operations_;
 };

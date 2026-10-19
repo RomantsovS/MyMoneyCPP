@@ -460,7 +460,7 @@ Each milestone is small enough for a few evenings. "Learn" lists the topics we d
 - **Done when:** you can run a test month of your finances through the CLI only.
 - **Decisions:** D22 ✔ — design in [ADR-0014](adr/0014-cli-design.md).
 
-### M3b — Category groups (in progress)
+### M3b — Category groups — ✅ done 2026-10-19
 - **Decided 2026-10-18 (option B, "folders and files"):** a category *group* only contains
   categories and never has operations; a *category* has operations and never has children.
   Groups exist only at the root (max depth 2); a category is at the root or inside a group of

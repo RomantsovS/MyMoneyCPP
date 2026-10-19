@@ -14,23 +14,26 @@ enum class CategoryKind : std::uint8_t {
   kIncome,
 };
 
-// Categories form a tree: "Food" > "Restaurants". A root category has depth 1
-// (ADR-0006).
-inline constexpr int kMaxCategoryDepth = 2;
+// Categories are "folders and files" (ADR-0015): a group is always at the
+// root and only contains categories; a category has operations and no
+// children. A category is at the root or inside a group of the same kind, so
+// the tree is at most two levels deep: "Food" > "Restaurants".
 
-// A category that is not stored yet - it has no id (ADR-0012).
+// A category or group that is not stored yet - it has no id (ADR-0012).
 struct NewCategory {
   std::string name;
   CategoryKind kind;
-  std::optional<CategoryId> parent_id;  // nullopt: a root category
+  std::optional<CategoryId> parent_id;  // nullopt: at the root
+  bool is_group = false;
 };
 
-// A stored category.
+// A stored category or group.
 struct Category {
   CategoryId id;
   std::string name;
   CategoryKind kind;
   std::optional<CategoryId> parent_id;
+  bool is_group = false;
 
   friend bool operator==(const Category&, const Category&) = default;
 };

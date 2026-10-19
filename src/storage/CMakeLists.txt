@@ -7,6 +7,7 @@ include(EmbedMigrations)
 set(mymoney_migration_scripts
   migrations/0001_initial.sql
   migrations/0002_unique_names.sql
+  migrations/0003_category_groups.sql
 )
 mymoney_embed_migrations(
   OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/migration_scripts.cpp"

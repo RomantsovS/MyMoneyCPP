@@ -69,6 +69,12 @@ Status OperationService::CheckMovement(const Movement& movement,
   if (!category) {
     return std::unexpected(category.error());
   }
+  if (category->is_group) {
+    return MakeError(ErrorCode::kRuleViolation,
+                     std::format("'{}' is a group; operations need one of "
+                                 "its categories",
+                                 category->name));
+  }
   if (category->kind != RequiredCategoryKind(type)) {
     return MakeError(ErrorCode::kRuleViolation,
                      std::format("category '{}' has the wrong kind for this "
