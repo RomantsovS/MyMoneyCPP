@@ -1,6 +1,7 @@
 # ADR-0006: Ledger model — operations and movements
 
-- **Status:** Accepted · 2026-10-13
+- **Status:** Accepted · 2026-10-13 · amended by [ADR-0015](0015-category-groups.md)
+  (category groups: only groups have children, only categories have operations)
 - **Plan item:** D2
 
 ## Context

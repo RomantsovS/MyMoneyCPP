@@ -1,6 +1,7 @@
 # ADR-0014: Command-line interface design (M3)
 
-- **Status:** Accepted · 2026-10-18
+- **Status:** Accepted · 2026-10-18 · amended by [ADR-0015](0015-category-groups.md)
+  (`category add --group` replaces `--parent`; new command `group add`)
 - **Plan items:** D22, M3
 - **Builds on:** ADR-0010 (CLI frontend), ADR-0012 (domain model), ADR-0013 (storage)
 

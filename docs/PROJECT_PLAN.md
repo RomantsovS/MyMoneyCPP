@@ -1,6 +1,6 @@
 # MyMoney — Project Plan and System Design
 
-> **Status:** draft v0.4 · 2026-10-16
+> **Status:** draft v0.5 · 2026-10-19
 > **Type:** personal learning project
 >
 > This document is a *living plan*. Update it when a decision is made or a milestone is finished.
@@ -88,7 +88,8 @@ On the desktop it runs in a phone-sized window.
 ### 3.1 MVP (v1.0) — "can replace the old app"
 
 - **Accounts** — create / edit / archive; each account has one currency.
-- **Categories** — expense and income categories, tree with max depth 2.
+- **Categories** — expense and income categories; root-level *groups* hold categories,
+  only categories hold operations (max depth 2, ADR-0015).
 - **Operations** — expense, income, transfer between accounts (also cross-currency).
 - **Journal** — list of operations, filter by period / account / category.
 - **Income & expense report** — by category hierarchy, **per currency**;
@@ -190,7 +191,7 @@ erDiagram
 
     CURRENCY      { text code PK "ISO 4217" int minor_digits "2 for cents" }
     ACCOUNT       { int id PK  text name  text currency FK  bool archived }
-    CATEGORY      { int id PK  text name  int kind "expense or income"  int parent_id FK }
+    CATEGORY      { int id PK  text name  int kind "expense or income"  int parent_id FK  bool is_group }
     OPERATION     { int id PK  date date  int type "expense, income, transfer"  text comment }
     MOVEMENT      { int id PK  int operation_id FK  int account_id FK  int category_id FK "nullable"  int amount_minor "signed" }
     EXCHANGE_RATE { date date  text currency FK  int rate_scaled "exact, vs base currency" }
@@ -459,15 +460,19 @@ Each milestone is small enough for a few evenings. "Learn" lists the topics we d
 - **Done when:** you can run a test month of your finances through the CLI only.
 - **Decisions:** D22 ✔ — design in [ADR-0014](adr/0014-cli-design.md).
 
-### M3b — Category groups (next)
+### M3b — Category groups (in progress)
 - **Decided 2026-10-18 (option B, "folders and files"):** a category *group* only contains
   categories and never has operations; a *category* has operations and never has children.
   Groups exist only at the root (max depth 2); a category is at the root or inside a group of
   the same kind; names are unique across groups and categories.
-- **Build:** `Category::is_group`; service rules; migration `0003` (column + triggers that
-  refuse operations on groups and children under non-groups); CLI `group add`,
-  `category add ... --group NAME` (CLI syntax still to be confirmed).
-- **To do first:** ADR-0015.
+- **Build:** `Category::is_group`; service rules; migration `0003` (column, conversion of
+  M3 data, triggers); fakes mirror the triggers; CLI `group add <name> --kind K`,
+  `category add <name> [--group NAME] [--kind K]` (replaces `--parent`), groups marked in
+  `category list`.
+- **Learn:** SQLite triggers and `RAISE`, `ALTER TABLE ADD COLUMN`, data migrations.
+- **Done when:** the M3 test database migrates without losing an operation; operations on
+  groups are refused by the service and by the database.
+- **Decisions:** D25 ✔ — design in [ADR-0015](adr/0015-category-groups.md).
 
 ### M4 — First UI: accounts and balances
 - **Build:** Qt Quick app with accounts page (list with balances, total), add/edit account.
@@ -549,6 +554,7 @@ translations (D19).
 | D22 | CLI argument parsing | M3 | ☑ hand-written parser + command table — [ADR-0014](adr/0014-cli-design.md) |
 | D23 | Logging in pure C++ layers | M1 | ☑ none; frontends log — [ADR-0012](adr/0012-domain-model.md) |
 | D24 | Build system and M0 skeleton | M0 | ☑ [ADR-0011](adr/0011-build-system-and-skeleton.md) |
+| D25 | Category groups | M3b | ☑ groups hold categories, categories hold operations — [ADR-0015](adr/0015-category-groups.md) |
 
 ### Open decisions
 
