@@ -1,6 +1,6 @@
 # MyMoney — Project Plan and System Design
 
-> **Status:** draft v0.5 · 2026-10-19
+> **Status:** draft v0.6 · 2026-10-21
 > **Type:** personal learning project
 >
 > This document is a *living plan*. Update it when a decision is made or a milestone is finished.
@@ -163,8 +163,8 @@ library. `storage` depends on `core` and SQLite. `ui` depends on `core` and Qt. 
 `ui` never depend on each other. Only the two composition roots (`cli`, `app`) know all layers
 and connect them.
 
-**Qt is used only in `ui` and `app`** (ADR-0002, ADR-0007). `core`, `storage`, `cli` and all
-unit tests build without Qt.
+**Qt is used only in `ui` and `app`** (ADR-0002, ADR-0007). `core`, `storage`, `cli` and
+their unit tests build without Qt; only `mymoney_ui_tests` needs Qt (ADR-0016).
 
 ### 4.2 Layer responsibilities
 
@@ -217,8 +217,8 @@ accessed through an **own C++23 wrapper** over the C API. No Qt SQL.
 - **Wrapper:** RAII types for the connection, prepared statements and transactions;
   type-safe parameter binding with variadic templates; errors as `std::expected`.
 - **File location:** chosen by the frontend and passed to `storage` as a path.
-  The Qt app uses `QStandardPaths::AppDataLocation` (Android: app-private storage);
-  the CLI uses a command-line option or a default per-user path.
+  The Qt app uses `QStandardPaths::AppLocalDataLocation` (Android: app-private storage);
+  the CLI uses a command-line option or the same per-user path (ADR-0014, ADR-0016).
 - **Migrations:** numbered SQL scripts; schema version in `PRAGMA user_version`;
   applied in one transaction on startup (D7).
 - **Integrity:** `PRAGMA foreign_keys = ON`; posting an operation is one SQL transaction.
@@ -377,7 +377,8 @@ MyMoney/
     ├── CMakeLists.txt
     ├── core/                 # mymoney_core_tests: version_test.cpp, money_test.cpp …
     ├── storage/              # mymoney_storage_tests: SQLite ":memory:"
-    └── cli/                  # mymoney_cli_tests
+    ├── cli/                  # mymoney_cli_tests
+    └── ui/                   # mymoney_ui_tests: Qt models and editors (needs Qt)
 ```
 
 Notes:
@@ -474,12 +475,15 @@ Each milestone is small enough for a few evenings. "Learn" lists the topics we d
   groups are refused by the service and by the database.
 - **Decisions:** D25 ✔ — design in [ADR-0015](adr/0015-category-groups.md).
 
-### M4 — First UI: accounts and balances
-- **Build:** Qt Quick app with accounts page (list with balances, total), add/edit account.
-- **Learn:** `QAbstractListModel` and roles, `QML_ELEMENT`, `ListView`, Qt Quick Controls,
-  `StackView`, bindings, C++ ↔ QML type conversions.
+### M4 — First UI: accounts and balances (in progress)
+- **Build:** Qt Quick app (Material, bottom tabs + `StackView`) with the accounts page
+  (balances, totals per currency, archived hidden), account form (add, rename, archive),
+  currency form; `AccountService::Rename/Unarchive`; wiring shared as
+  `storage::AppServices`; `mymoney_ui_tests` for models and editors.
+- **Learn:** `QAbstractListModel` and roles, `QML_ELEMENT` / `QML_SINGLETON`, `ListView`,
+  Qt Quick Controls, `StackView`, bindings, C++ ↔ QML type conversions, `QLocale`, qmllint.
 - **Done when:** you can create accounts on the phone; data survives app restart.
-- **Decisions:** D10, D11, D12, D19.
+- **Decisions:** D10 ✔, D11 ✔, D12 ✔, D19 ✔ — design in [ADR-0016](adr/0016-first-ui-accounts.md).
 
 ### M5 — Entering operations (UI)
 - **Build:** expense / income / transfer form; category picker; amount input.
@@ -539,16 +543,16 @@ translations (D19).
 | D7 | Migrations and date storage | M2 | ☑ embedded `.sql` files + `user_version`; ISO TEXT dates — [ADR-0013](adr/0013-storage-design.md) |
 | D8 | Test framework | M1 | ☑ GoogleTest — [ADR-0003](adr/0003-googletest.md) |
 | D9 | C++ standard | M0 | ☑ C++23; GCC 15 on Linux — [ADR-0002](adr/0002-core-is-pure-cpp23.md) |
-| D10 | Visual style | M4 | ☐ |
-| D11 | Navigation and desktop layout | M4 | ☐ |
-| D12 | How QML gets C++ objects | M4 | ☐ |
+| D10 | Visual style | M4 | ☑ Material, light/dark from the system — [ADR-0016](adr/0016-first-ui-accounts.md) |
+| D11 | Navigation and desktop layout | M4 | ☑ bottom tabs + `StackView` per tab — [ADR-0016](adr/0016-first-ui-accounts.md) |
+| D12 | How QML gets C++ objects | M4 | ☑ B, singletons created in `main` — [ADR-0016](adr/0016-first-ui-accounts.md) |
 | D13 | Backup strategy | M9 | ☐ |
 | D14 | Sync between devices | later | ☐ |
 | D15 | Import format and details | M8 | ◐ in M8; level-3 categories merged into parents |
 | D16 | Error handling | M1 | ☑ no exceptions, `std::expected` — [ADR-0008](adr/0008-google-cpp-style.md) |
 | D17 | Code style | M0 | ☑ Google C++ Style — [ADR-0008](adr/0008-google-cpp-style.md) |
 | D18 | Name, package ID, repo | M0 | ☑ [ADR-0005](adr/0005-android-package-id.md) |
-| D19 | UI language(s) | M4 | ☐ |
+| D19 | UI language(s) | M4 | ◐ English now (`qsTr()`), Russian translation later — [ADR-0016](adr/0016-first-ui-accounts.md) |
 | D20 | How to record decisions | M0 | ☑ ADRs — [ADR-0001](adr/0001-record-decisions-as-adrs.md) |
 | D21 | Exchange rates and conversion | M7 | ◐ proposed, only the rate source open — [ADR-0009](adr/0009-exchange-rates-for-balance-reports.md) |
 | D22 | CLI argument parsing | M3 | ☑ hand-written parser + command table — [ADR-0014](adr/0014-cli-design.md) |
