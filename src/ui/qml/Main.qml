@@ -1,9 +1,13 @@
 import QtQuick
+import QtQuick.Controls.Material
+import QtQuick.Layouts
 
-// M0: an empty window that proves the whole chain works:
-// C++ core -> Qt app -> QML, on desktop and Android.
-// The visual style (D10) and navigation (D11) are decided in M4.
-Window {
+import MyMoney.UI
+
+// The main window (ADR-0016): Material style, light or dark as the system
+// says; bottom tabs, each tab with its own page stack. M4 has only the
+// Accounts tab, so the tab bar stays hidden until a second tab exists.
+ApplicationWindow {
     id: root
 
     // Passed in from C++ (src/app/main.cpp) with setInitialProperties().
@@ -12,11 +16,37 @@ Window {
     width: 400
     height: 850
     visible: true
-    title: qsTr("MyMoney")
+    title: qsTr("MyMoney %1").arg(root.appVersion)
 
-    Text {
-        anchors.centerIn: parent
-        text: qsTr("MyMoney %1").arg(root.appVersion)
-        font.pixelSize: 24
+    Material.theme: Material.System
+
+    footer: TabBar {
+        id: tabs
+
+        visible: count > 1
+
+        TabButton {
+            text: qsTr("Accounts")
+        }
+    }
+
+    StackLayout {
+        anchors.fill: parent
+        currentIndex: tabs.currentIndex
+
+        StackView {
+            id: accountsStack
+
+            initialItem: AccountsPage {}
+        }
+    }
+
+    // Android's back button closes the window; inside a tab it should go back
+    // one page first.
+    onClosing: close => {
+        if (accountsStack.depth > 1) {
+            close.accepted = false;
+            accountsStack.pop();
+        }
     }
 }

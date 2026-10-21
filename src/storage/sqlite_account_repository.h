@@ -22,6 +22,7 @@ class SqliteAccountRepository final : public core::AccountRepository {
   core::Result<core::Account> GetByName(std::string_view name) override;
   core::Result<std::vector<core::Account>> List() override;
   core::Status SetArchived(core::AccountId id, bool archived) override;
+  core::Status Rename(core::AccountId id, std::string_view name) override;
 
  private:
   sqlite::Database* db_;

@@ -8,11 +8,11 @@
 
 #include <gtest/gtest.h>
 
-#include "cli/application.h"
 #include "cli/command_table.h"
 #include "cli/commands/command_helpers.h"
 #include "cli/context.h"
 #include "core/test_util.h"
+#include "storage/app_services.h"
 #include "storage/storage.h"
 
 namespace mymoney::cli {
@@ -44,8 +44,8 @@ class CliTest : public ::testing::Test {
     Ok({"category", "add", "Зарплата", "--kind", "income"});
   }
 
-  Application application_{storage::OpenStorage(":memory:").value()};
-  Context context_ = application_.MakeContext(core::test::Date(2026, 10, 18));
+  storage::AppServices services_{storage::OpenStorage(":memory:").value()};
+  Context context_ = MakeContext(services_, core::test::Date(2026, 10, 18));
 };
 
 TEST_F(CliTest, RecordsAMonthAndShowsJournalAndBalances) {

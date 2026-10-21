@@ -64,7 +64,10 @@ cmake --preset windows-noui-debug && cmake --build --preset windows-noui-debug &
 - `windows-noui-debug`: core, storage, CLI and all tests, without Qt (fastest check).
 - `local-windows-debug` / `local-windows-release`: with Qt; defined in the git-ignored
   `CMakeUserPresets.json` (Qt path). `--target install` creates a runnable `dist/<preset>/`.
-- From the PowerShell tool, run the lines above through one `cmd /c "... && ..."`.
+- From the PowerShell tool, run the lines above through one `cmd /c "... && ..."`, with
+  `C:\Program Files (x86)\Microsoft Visual Studio\Installer` prepended to `PATH`: without
+  it `vcvarsall.bat` cannot find `vswhere.exe`, and the failed configure then caches empty
+  compiler flags (no `/EHsc`) - fix that with `cmake --preset <name> --fresh`.
 
 **Linux** (WSL distro `Ubuntu-26.04`, GCC 15, CMake 4.2):
 `wsl -d Ubuntu-26.04 -- bash -lc "cd /mnt/c/Users/roman/source/repos/MyMoney && cmake --preset linux-noui-debug && cmake --build --preset linux-noui-debug && ctest --preset linux-noui-debug"`.
@@ -79,17 +82,23 @@ build folder; it uses the NMake/JOM generator:
 set PATH=C:\Qt\Tools\QtCreator\bin\jom;C:\Qt\Tools\CMake_64\bin;%PATH%
 cmake -S . -B build\Qt_6_12_0_for_Android_arm64_v8a_Debug
 cmake --build build\Qt_6_12_0_for_Android_arm64_v8a_Debug --target mymoney_app
+cmake --build build\Qt_6_12_0_for_Android_arm64_v8a_Debug --target apk
 ```
 
-Gradle leaves a daemon running that keeps output pipes open: do not wait on piped Gradle
-output; check for the `.apk` file instead.
+`mymoney_app` builds only the native library; the `apk` target packages it
+(`src\app\android-build-mymoney_app\mymoney_app.apk`). Gradle leaves a daemon running that
+keeps output pipes open: do not wait on piped Gradle output; check for the `.apk` file instead.
 
 **Static analysis** (Qt Creator's LLVM 22), using the compile commands of a build folder:
 
 ```bat
 C:\Qt\Tools\QtCreator\bin\clang\bin\clang-tidy.exe -p build\windows-noui-debug --quiet <file.cpp>
 C:\Qt\Tools\QtCreator\bin\clang\bin\clang-format.exe -i <files>
+cmake --build --preset local-windows-debug --target mymoney_ui_qmllint
 ```
+
+UI files need a Qt build folder for clang-tidy (`-p build\windows-debug`). qmllint must
+report 0 warnings too (ADR-0016).
 
 ## Gotchas
 

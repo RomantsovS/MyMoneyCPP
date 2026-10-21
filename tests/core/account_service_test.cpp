@@ -72,5 +72,47 @@ TEST_F(AccountServiceTest, ArchivingUnknownAccountFails) {
   EXPECT_EQ(status.error().code, ErrorCode::kNotFound);
 }
 
+TEST_F(AccountServiceTest, UnarchivesAccount) {
+  const Account account = AddAccount("Old card");
+  ASSERT_TRUE(account_service_.Archive(account.id).has_value());
+
+  ASSERT_TRUE(account_service_.Unarchive(account.id).has_value());
+  EXPECT_FALSE(accounts_.Get(account.id)->archived);
+}
+
+TEST_F(AccountServiceTest, RenamesAccount) {
+  const Account account = AddAccount("Card");
+
+  const Result<Account> renamed = account_service_.Rename(account.id, "Visa");
+
+  ASSERT_TRUE(renamed.has_value()) << renamed.error().message;
+  EXPECT_EQ(renamed->name, "Visa");
+  EXPECT_EQ(renamed->id, account.id);
+  EXPECT_EQ(accounts_.Get(account.id), renamed);
+}
+
+TEST_F(AccountServiceTest, RenamingToTheSameNameChangesNothing) {
+  const Account account = AddAccount("Card");
+
+  EXPECT_EQ(account_service_.Rename(account.id, "Card"), account);
+}
+
+TEST_F(AccountServiceTest, RenameFollowsTheNameRules) {
+  const Account card = AddAccount("Card");
+  AddAccount("Cash");
+
+  const Result<Account> blank = account_service_.Rename(card.id, " ");
+  const Result<Account> taken = account_service_.Rename(card.id, "Cash");
+  const Result<Account> unknown = account_service_.Rename(AccountId(999), "X");
+
+  ASSERT_FALSE(blank.has_value());
+  EXPECT_EQ(blank.error().code, ErrorCode::kInvalidArgument);
+  ASSERT_FALSE(taken.has_value());
+  EXPECT_EQ(taken.error().code, ErrorCode::kRuleViolation);
+  ASSERT_FALSE(unknown.has_value());
+  EXPECT_EQ(unknown.error().code, ErrorCode::kNotFound);
+  EXPECT_EQ(accounts_.Get(card.id)->name, "Card");
+}
+
 }  // namespace
 }  // namespace mymoney::core::test

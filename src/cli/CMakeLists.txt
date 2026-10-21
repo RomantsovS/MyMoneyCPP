@@ -2,7 +2,6 @@
 # Everything except main() is a library, so tests can run real commands.
 
 add_library(mymoney_cli_lib STATIC
-  application.h
   arguments.cpp
   arguments.h
   command_table.cpp

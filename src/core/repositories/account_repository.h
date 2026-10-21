@@ -25,6 +25,8 @@ class AccountRepository {
   [[nodiscard]] virtual Result<std::vector<Account>> List() = 0;
   // kNotFound if there is no account with this id.
   [[nodiscard]] virtual Status SetArchived(AccountId id, bool archived) = 0;
+  // kNotFound if there is no account with this id.
+  [[nodiscard]] virtual Status Rename(AccountId id, std::string_view name) = 0;
 };
 
 }  // namespace mymoney::core

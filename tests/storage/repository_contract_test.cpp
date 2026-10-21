@@ -203,6 +203,30 @@ TYPED_TEST(RepositoryContractTest, ArchivingUnknownAccountIsNotFound) {
   EXPECT_EQ(status.error().code, ErrorCode::kNotFound);
 }
 
+TYPED_TEST(RepositoryContractTest, RenamesAccount) {
+  const Account account = this->AddAccount("Card");
+
+  ASSERT_TRUE(this->repos_.accounts.Rename(account.id, "Visa"));
+  EXPECT_EQ(this->repos_.accounts.Get(account.id)->name, "Visa");
+  EXPECT_EQ(this->repos_.accounts.GetByName("Card").error().code,
+            ErrorCode::kNotFound);
+  // Its own name again is not a duplicate.
+  EXPECT_TRUE(this->repos_.accounts.Rename(account.id, "Visa"));
+}
+
+TYPED_TEST(RepositoryContractTest, RenameIsRefusedForUnknownOrTakenNames) {
+  const Account card = this->AddAccount("Card");
+  this->AddAccount("Cash");
+
+  const Status unknown = this->repos_.accounts.Rename(AccountId(999), "X");
+  const Status taken = this->repos_.accounts.Rename(card.id, "Cash");
+
+  ASSERT_FALSE(unknown.has_value());
+  EXPECT_EQ(unknown.error().code, ErrorCode::kNotFound);
+  ASSERT_FALSE(taken.has_value());
+  EXPECT_EQ(taken.error().code, ErrorCode::kStorage);
+}
+
 // --- Categories
 // ---------------------------------------------------------------
 

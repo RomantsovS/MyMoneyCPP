@@ -1,5 +1,9 @@
 #include "core/services/account_service.h"
 
+#include <string>
+#include <string_view>
+#include <utility>
+
 #include "core/account.h"
 #include "core/check.h"
 #include "core/currency.h"
@@ -29,8 +33,28 @@ Result<Account> AccountService::Create(const NewAccount& account) {
           [&](const Currency& /*known*/) { return accounts_->Add(account); });
 }
 
+Result<Account> AccountService::Rename(AccountId id, std::string_view name) {
+  Result<Account> account = accounts_->Get(id);
+  if (!account || account->name == name) {
+    return account;  // unknown id, or nothing to change
+  }
+  return ValidateName(name, "account")
+      .and_then([&] {
+        return CheckNameIsFree(accounts_->GetByName(name), "account", name);
+      })
+      .and_then([&] { return accounts_->Rename(id, name); })
+      .transform([&] {
+        account->name = std::string(name);
+        return std::move(*account);
+      });
+}
+
 Status AccountService::Archive(AccountId id) {
   return accounts_->SetArchived(id, true);
+}
+
+Status AccountService::Unarchive(AccountId id) {
+  return accounts_->SetArchived(id, false);
 }
 
 }  // namespace mymoney::core

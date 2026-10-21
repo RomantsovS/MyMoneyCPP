@@ -475,7 +475,7 @@ Each milestone is small enough for a few evenings. "Learn" lists the topics we d
   groups are refused by the service and by the database.
 - **Decisions:** D25 ✔ — design in [ADR-0015](adr/0015-category-groups.md).
 
-### M4 — First UI: accounts and balances (in progress)
+### M4 — First UI: accounts and balances — ✅ done 2026-10-21
 - **Build:** Qt Quick app (Material, bottom tabs + `StackView`) with the accounts page
   (balances, totals per currency, archived hidden), account form (add, rename, archive),
   currency form; `AccountService::Rename/Unarchive`; wiring shared as

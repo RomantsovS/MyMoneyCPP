@@ -14,6 +14,7 @@ mymoney_embed_migrations(
   SCRIPTS ${mymoney_migration_scripts})
 
 add_library(mymoney_storage STATIC
+  app_services.h
   migrations.cpp
   migrations.h
   query_helpers.h

@@ -12,6 +12,7 @@
 #include <format>
 #include <map>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -111,6 +112,21 @@ class InMemoryAccountRepository final : public AccountRepository {
       return NotFound(id);
     }
     it->second.archived = archived;
+    return {};
+  }
+
+  Status Rename(AccountId id, std::string_view name) override {
+    const auto it = accounts_.find(id);
+    if (it == accounts_.end()) {
+      return NotFound(id);
+    }
+    // Like the UNIQUE index in SQLite (migration 0002): a storage error.
+    if (const Result<Account> other = GetByName(name);
+        other.has_value() && other->id != id) {
+      return MakeError(ErrorCode::kStorage,
+                       "UNIQUE constraint failed: account.name");
+    }
+    it->second.name = std::string(name);
     return {};
   }
 

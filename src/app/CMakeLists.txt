@@ -23,8 +23,11 @@ set_target_properties(mymoney_app PROPERTIES
   QT_QML_IMPORT_SCANNER_EXTRA_ROOT_PATHS "${PROJECT_SOURCE_DIR}/src/ui"
 )
 
+# The composition root knows every layer (ADR-0016).
 target_link_libraries(mymoney_app PRIVATE
   mymoney::core
+  mymoney::storage
+  mymoney_ui
   mymoney_uiplugin
   Qt6::Gui
   Qt6::Qml

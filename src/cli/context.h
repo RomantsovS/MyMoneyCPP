@@ -11,11 +11,12 @@
 #include "core/services/balance_service.h"
 #include "core/services/category_service.h"
 #include "core/services/operation_service.h"
+#include "storage/app_services.h"
 
 namespace mymoney::cli {
 
 // Everything a command may use (ADR-0014). Non-owning pointers, never null:
-// the objects live in an Application (or in a test fixture).
+// the objects live in a storage::AppServices (or in a test fixture).
 // Writes go through services (they check the rules); reads may use
 // repositories directly.
 struct Context {
@@ -32,6 +33,20 @@ struct Context {
   // "Today" for commands without --date; injected so tests are repeatable.
   std::chrono::year_month_day today;
 };
+
+// A context for the services of `app`, which must outlive it.
+inline Context MakeContext(storage::AppServices& app,
+                           std::chrono::year_month_day today) {
+  return {.currencies = app.currencies(),
+          .accounts = app.accounts(),
+          .categories = app.categories(),
+          .operations = app.operations(),
+          .account_service = app.account_service(),
+          .category_service = app.category_service(),
+          .operation_service = app.operation_service(),
+          .balance_service = app.balance_service(),
+          .today = today};
+}
 
 }  // namespace mymoney::cli
 

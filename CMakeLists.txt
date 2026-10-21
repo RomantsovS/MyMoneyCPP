@@ -47,6 +47,9 @@ endif()
 # --- Qt part -----------------------------------------------------------------
 if(MYMONEY_BUILD_UI)
   find_package(Qt6 6.12 REQUIRED COMPONENTS Gui Qml Quick)
+  if(MYMONEY_BUILD_TESTS)
+    find_package(Qt6 6.12 REQUIRED COMPONENTS Test)  # mymoney_ui_tests
+  endif()
   qt_standard_project_setup(REQUIRES 6.12)
 
   # All QML modules go to build/<preset>/qml/<URI path>, e.g. qml/MyMoney/UI.
@@ -55,4 +58,8 @@ if(MYMONEY_BUILD_UI)
 
   add_subdirectory(src/ui)
   add_subdirectory(src/app)
+
+  if(MYMONEY_BUILD_TESTS)
+    add_subdirectory(tests/ui)
+  endif()
 endif()

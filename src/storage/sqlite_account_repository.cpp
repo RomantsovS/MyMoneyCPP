@@ -88,4 +88,17 @@ core::Status SqliteAccountRepository::SetArchived(core::AccountId id,
       });
 }
 
+core::Status SqliteAccountRepository::Rename(core::AccountId id,
+                                             std::string_view name) {
+  return db_
+      ->Run("UPDATE account SET name = ?2 WHERE id = ?1", id.value(), name)
+      .and_then([&]() -> core::Status {
+        if (db_->ChangedRows() == 0) {
+          return core::MakeError(core::ErrorCode::kNotFound,
+                                 NotFoundMessage(id));
+        }
+        return {};
+      });
+}
+
 }  // namespace mymoney::storage

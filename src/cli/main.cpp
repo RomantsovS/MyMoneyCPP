@@ -18,12 +18,12 @@
 #include <variant>
 #include <vector>
 
-#include "cli/application.h"
 #include "cli/arguments.h"
 #include "cli/command_table.h"
 #include "cli/environment.h"
 #include "core/check.h"
 #include "core/error.h"
+#include "storage/app_services.h"
 #include "storage/sqlite/database.h"
 #include "storage/storage.h"
 
@@ -101,9 +101,9 @@ int main(int argc, char* argv[]) {
     return Fail(db.error().message);
   }
 
-  mymoney::cli::Application application(std::move(*db));
+  mymoney::storage::AppServices services(std::move(*db));
   mymoney::cli::Context context =
-      application.MakeContext(mymoney::cli::LocalToday());
+      mymoney::cli::MakeContext(services, mymoney::cli::LocalToday());
   // Prepare() returned no finished result, so it holds the matched command.
   const auto* command = std::get_if<mymoney::cli::MatchedCommand>(&prepared);
   mymoney::core::Check(command != nullptr, "Prepare() returned nothing");
