@@ -1,6 +1,6 @@
 # MyMoney — Project Plan and System Design
 
-> **Status:** draft v0.6 · 2026-10-21
+> **Status:** draft v0.7 · 2026-10-25
 > **Type:** personal learning project
 >
 > This document is a *living plan*. Update it when a decision is made or a milestone is finished.
@@ -485,10 +485,15 @@ Each milestone is small enough for a few evenings. "Learn" lists the topics we d
 - **Done when:** you can create accounts on the phone; data survives app restart.
 - **Decisions:** D10 ✔, D11 ✔, D12 ✔, D19 ✔ — design in [ADR-0016](adr/0016-first-ui-accounts.md).
 
-### M5 — Entering operations (UI)
-- **Build:** expense / income / transfer form; category picker; amount input.
-- **Learn:** form controllers, `Q_PROPERTY` + `NOTIFY`, validation, Android keyboard behaviour.
+### M5 — Entering operations (UI) (in progress)
+- **Build:** one operation form (Expense / Income / Transfer switch) opened by `+` on the
+  Accounts page; amount with the number keyboard; recent-category chips and a grouped
+  category picker; account picker; Today / Yesterday / calendar; pre-filled values from the
+  data (`OperationRepository::Latest`, `RecentCategories`); "saved" message on return.
+- **Learn:** form controllers, `Q_PROPERTY` + `NOTIFY`, validation, Android keyboard behaviour,
+  `ListView` sections, `MonthGrid`, dates across the C++ / QML border.
 - **Done when:** adding an expense on the phone takes < 10 seconds.
+- **Decisions:** D26 ✔ — design in [ADR-0017](adr/0017-entering-operations-ui.md).
 
 ### M6 — Journal (UI)
 - **Build:** operations list with filters; edit and delete.
@@ -559,6 +564,7 @@ translations (D19).
 | D23 | Logging in pure C++ layers | M1 | ☑ none; frontends log — [ADR-0012](adr/0012-domain-model.md) |
 | D24 | Build system and M0 skeleton | M0 | ☑ [ADR-0011](adr/0011-build-system-and-skeleton.md) |
 | D25 | Category groups | M3b | ☑ groups hold categories, categories hold operations — [ADR-0015](adr/0015-category-groups.md) |
+| D26 | Entering operations in the UI | M5 | ☑ one form, defaults from the data, recent categories — [ADR-0017](adr/0017-entering-operations-ui.md) |
 
 ### Open decisions
 
