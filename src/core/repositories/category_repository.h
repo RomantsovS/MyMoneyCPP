@@ -23,6 +23,9 @@ class CategoryRepository {
   // Category names are unique (ADR-0014). kNotFound if there is none.
   [[nodiscard]] virtual Result<Category> GetByName(std::string_view name) = 0;
   [[nodiscard]] virtual Result<std::vector<Category>> List() = 0;
+  // Changes only the name (ADR-0018). kNotFound if there is no category with
+  // this id.
+  [[nodiscard]] virtual Status Rename(CategoryId id, std::string_view name) = 0;
 };
 
 }  // namespace mymoney::core

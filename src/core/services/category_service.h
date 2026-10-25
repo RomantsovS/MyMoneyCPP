@@ -1,9 +1,12 @@
 #ifndef MYMONEY_CORE_SERVICES_CATEGORY_SERVICE_H_
 #define MYMONEY_CORE_SERVICES_CATEGORY_SERVICE_H_
 
+#include <string_view>
+
 #include "core/category.h"
 #include "core/error.h"
 #include "core/repositories/category_repository.h"
+#include "core/strong_id.h"
 
 namespace mymoney::core {
 
@@ -18,6 +21,10 @@ class CategoryService {
   // the root. A category with a parent needs an existing group of the same
   // kind as that parent.
   [[nodiscard]] Result<Category> Create(const NewCategory& category);
+
+  // A new name follows the name rules of Create(); keeping the old name is
+  // fine. The kind, the group and is_group never change (ADR-0018).
+  [[nodiscard]] Result<Category> Rename(CategoryId id, std::string_view name);
 
  private:
   CategoryRepository* categories_;

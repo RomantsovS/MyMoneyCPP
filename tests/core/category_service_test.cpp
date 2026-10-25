@@ -126,5 +126,47 @@ TEST_F(CategoryServiceTest, GroupIsAlwaysAtTheRoot) {
   EXPECT_EQ(categories_.size(), 1U);
 }
 
+TEST_F(CategoryServiceTest, RenamesCategoriesAndGroups) {
+  const Category food = AddGroup("Food", CategoryKind::kExpense);
+  const Category cafe = AddCategory("Cafe", CategoryKind::kExpense, food.id);
+
+  const Result<Category> group = category_service_.Rename(food.id, "Eating");
+  const Result<Category> category =
+      category_service_.Rename(cafe.id, "Restaurants");
+
+  ASSERT_TRUE(group.has_value()) << group.error().message;
+  EXPECT_EQ(group->name, "Eating");
+  EXPECT_TRUE(group->is_group);
+  ASSERT_TRUE(category.has_value()) << category.error().message;
+  EXPECT_EQ(categories_.Get(cafe.id)->name, "Restaurants");
+  EXPECT_EQ(categories_.Get(cafe.id)->parent_id, food.id);  // still inside
+}
+
+TEST_F(CategoryServiceTest, RenamingToTheSameNameChangesNothing) {
+  const Category food = AddCategory("Food", CategoryKind::kExpense);
+
+  EXPECT_EQ(category_service_.Rename(food.id, "Food"), food);
+}
+
+TEST_F(CategoryServiceTest, RenameFollowsTheNameRules) {
+  const Category food = AddGroup("Food", CategoryKind::kExpense);
+  const Category salary = AddCategory("Salary", CategoryKind::kIncome);
+
+  const Result<Category> blank = category_service_.Rename(food.id, " ");
+  // Unique across groups, categories and kinds.
+  const Result<Category> taken = category_service_.Rename(food.id, "Salary");
+  const Result<Category> unknown =
+      category_service_.Rename(CategoryId(999), "X");
+
+  ASSERT_FALSE(blank.has_value());
+  EXPECT_EQ(blank.error().code, ErrorCode::kInvalidArgument);
+  ASSERT_FALSE(taken.has_value());
+  EXPECT_EQ(taken.error().code, ErrorCode::kRuleViolation);
+  ASSERT_FALSE(unknown.has_value());
+  EXPECT_EQ(unknown.error().code, ErrorCode::kNotFound);
+  EXPECT_EQ(categories_.Get(food.id)->name, "Food");
+  EXPECT_EQ(categories_.Get(salary.id)->name, "Salary");
+}
+
 }  // namespace
 }  // namespace mymoney::core::test

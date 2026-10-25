@@ -23,12 +23,14 @@
 #include "storage/sqlite/database.h"
 #include "storage/storage.h"
 #include "ui/controllers/account_editor.h"
+#include "ui/controllers/category_editor.h"
 #include "ui/controllers/currency_editor.h"
 #include "ui/controllers/operation_editor.h"
 #include "ui/date_convert.h"
 #include "ui/models/account_list_model.h"
 #include "ui/models/account_picker_model.h"
 #include "ui/models/category_picker_model.h"
+#include "ui/models/category_tree_model.h"
 #include "ui/models/currency_list_model.h"
 #include "ui/singleton_instance.h"
 
@@ -40,7 +42,9 @@ namespace {
 using mymoney::ui::AccountEditor;
 using mymoney::ui::AccountListModel;
 using mymoney::ui::AccountPickerModel;
+using mymoney::ui::CategoryEditor;
 using mymoney::ui::CategoryPickerModel;
+using mymoney::ui::CategoryTreeModel;
 using mymoney::ui::CurrencyEditor;
 using mymoney::ui::CurrencyListModel;
 using mymoney::ui::OperationEditor;
@@ -94,6 +98,9 @@ int main(int argc, char* argv[]) {
   CurrencyEditor currency_editor(services.currencies());
   AccountPickerModel account_picker(services.accounts());
   CategoryPickerModel category_picker(services.categories());
+  CategoryTreeModel category_tree(services.categories());
+  CategoryEditor category_editor(services.categories(),
+                                 services.category_service());
   OperationEditor operation_editor(services.accounts(), services.categories(),
                                    services.currencies(), services.operations(),
                                    services.operation_service(),
@@ -106,6 +113,8 @@ int main(int argc, char* argv[]) {
                    &AccountListModel::reload);
   QObject::connect(&currency_editor, &CurrencyEditor::saved, &currency_list,
                    &CurrencyListModel::reload);
+  QObject::connect(&category_editor, &CategoryEditor::saved, &category_tree,
+                   &CategoryTreeModel::reload);
   // A new operation changes balances.
   QObject::connect(&operation_editor, &OperationEditor::saved, &account_list,
                    &AccountListModel::reload);
@@ -123,6 +132,10 @@ int main(int argc, char* argv[]) {
       &account_picker);
   const SingletonInstance<CategoryPickerModel>::Registration
       category_picker_qml(&category_picker);
+  const SingletonInstance<CategoryTreeModel>::Registration category_tree_qml(
+      &category_tree);
+  const SingletonInstance<CategoryEditor>::Registration category_editor_qml(
+      &category_editor);
   const SingletonInstance<OperationEditor>::Registration operation_editor_qml(
       &operation_editor);
 

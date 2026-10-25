@@ -2,6 +2,7 @@
 
 #include <expected>
 #include <format>
+#include <string>
 #include <string_view>
 #include <utility>
 
@@ -9,6 +10,7 @@
 #include "core/check.h"
 #include "core/error.h"
 #include "core/repositories/category_repository.h"
+#include "core/strong_id.h"
 #include "core/validation.h"
 
 namespace mymoney::core {
@@ -54,6 +56,25 @@ Result<Category> CategoryService::Create(const NewCategory& category) {
                                  category.name, parent->name));
   }
   return categories_->Add(category);
+}
+
+Result<Category> CategoryService::Rename(CategoryId id, std::string_view name) {
+  Result<Category> category = categories_->Get(id);
+  if (!category || category->name == name) {
+    return category;  // unknown id, or nothing to change
+  }
+  const std::string_view what = category->is_group ? "group" : "category";
+  return ValidateName(name, what)
+      .and_then([&] {
+        // The existing object may be either, so the message names both.
+        return CheckNameIsFree(categories_->GetByName(name),
+                               "category or group", name);
+      })
+      .and_then([&] { return categories_->Rename(id, name); })
+      .transform([&] {
+        category->name = std::string(name);
+        return std::move(*category);
+      });
 }
 
 }  // namespace mymoney::core

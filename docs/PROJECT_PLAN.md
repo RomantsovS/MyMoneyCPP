@@ -495,7 +495,7 @@ Each milestone is small enough for a few evenings. "Learn" lists the topics we d
 - **Done when:** adding an expense on the phone takes < 10 seconds.
 - **Decisions:** D26 ✔ — design in [ADR-0017](adr/0017-entering-operations-ui.md).
 
-### M5b — Category screens (in progress)
+### M5b — Category screens — ✅ done 2026-10-25
 - **Why:** categories are MVP (section 3.1), but no milestone had screens for them; on the
   phone (its own database) there were none, so only transfers could be entered.
 - **Build:** Categories page (`⋮` → Categories) with the tree of groups and categories per

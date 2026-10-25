@@ -48,6 +48,18 @@ Page {
             onTextEdited: CategoryPickerModel.filterText = text
         }
 
+        // A missing category is added without leaving the operation
+        // (ADR-0018). After saving, the form returns to the page below this
+        // picker - the operation form - with the new category chosen.
+        ItemDelegate {
+            Layout.fillWidth: true
+            text: qsTr("+ New category")
+            onClicked: page.StackView.view.push(categoryForm, {
+                kindText: OperationEditor.type,
+                returnTo: page.StackView.view.get(page.StackView.index - 1)
+            })
+        }
+
         ListView {
             id: list
 
@@ -92,12 +104,18 @@ Page {
         }
     }
 
+    Component {
+        id: categoryForm
+
+        CategoryForm {}
+    }
+
     Label {
         anchors.centerIn: parent
         width: parent.width - 32
         visible: list.count === 0
         horizontalAlignment: Text.AlignHCenter
         wrapMode: Text.Wrap
-        text: CategoryPickerModel.errorText !== "" ? CategoryPickerModel.errorText : qsTr("No categories. Add them with mymoney-cli for now.")
+        text: CategoryPickerModel.errorText !== "" ? CategoryPickerModel.errorText : qsTr("No categories yet. Tap \"+ New category\".")
     }
 }

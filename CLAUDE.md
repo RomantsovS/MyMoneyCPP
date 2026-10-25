@@ -88,6 +88,8 @@ cmake --build build\Qt_6_12_0_for_Android_arm64_v8a_Debug --target apk
 `mymoney_app` builds only the native library; the `apk` target packages it
 (`src\app\android-build-mymoney_app\mymoney_app.apk`). Gradle leaves a daemon running that
 keeps output pipes open: do not wait on piped Gradle output; check for the `.apk` file instead.
+The daemon also keeps a redirected log file open: give every build a new log file name, and
+always compare the `.apk` timestamp - an old log can look like a successful build.
 
 **Static analysis** (Qt Creator's LLVM 22), using the compile commands of a build folder:
 

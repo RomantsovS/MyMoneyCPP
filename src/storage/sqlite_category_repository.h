@@ -21,6 +21,7 @@ class SqliteCategoryRepository final : public core::CategoryRepository {
   core::Result<core::Category> Get(core::CategoryId id) override;
   core::Result<core::Category> GetByName(std::string_view name) override;
   core::Result<std::vector<core::Category>> List() override;
+  core::Status Rename(core::CategoryId id, std::string_view name) override;
 
  private:
   sqlite::Database* db_;

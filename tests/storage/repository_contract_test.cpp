@@ -304,6 +304,32 @@ TYPED_TEST(RepositoryContractTest, FindsCategoryByName) {
             ErrorCode::kNotFound);
 }
 
+TYPED_TEST(RepositoryContractTest, RenamesCategory) {
+  const Category food = this->AddGroup("Food", CategoryKind::kExpense);
+
+  ASSERT_TRUE(this->repos_.categories.Rename(food.id, "Eating"));
+  const Result<Category> renamed = this->repos_.categories.Get(food.id);
+  ASSERT_TRUE(renamed.has_value());
+  EXPECT_EQ(renamed->name, "Eating");
+  EXPECT_TRUE(renamed->is_group);  // nothing else changes
+  // Its own name again is not a duplicate.
+  EXPECT_TRUE(this->repos_.categories.Rename(food.id, "Eating"));
+}
+
+TYPED_TEST(RepositoryContractTest,
+           CategoryRenameIsRefusedForUnknownOrTakenNames) {
+  const Category food = this->AddCategory("Food", CategoryKind::kExpense);
+  this->AddCategory("Salary", CategoryKind::kIncome);
+
+  const Status unknown = this->repos_.categories.Rename(CategoryId(999), "X");
+  const Status taken = this->repos_.categories.Rename(food.id, "Salary");
+
+  ASSERT_FALSE(unknown.has_value());
+  EXPECT_EQ(unknown.error().code, ErrorCode::kNotFound);
+  ASSERT_FALSE(taken.has_value());
+  EXPECT_EQ(taken.error().code, ErrorCode::kStorage);
+}
+
 TYPED_TEST(RepositoryContractTest, UnknownCategoryIsNotFound) {
   const Result<Category> category =
       this->repos_.categories.Get(CategoryId(999));

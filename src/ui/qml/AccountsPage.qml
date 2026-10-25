@@ -46,6 +46,10 @@ Page {
                         })
                     }
                     MenuItem {
+                        text: qsTr("Categories")
+                        onTriggered: page.StackView.view.push(categoriesPage)
+                    }
+                    MenuItem {
                         text: qsTr("Show archived")
                         checkable: true
                         checked: AccountListModel.showArchived
@@ -155,5 +159,11 @@ Page {
         id: operationForm
 
         OperationForm {}
+    }
+
+    Component {
+        id: categoriesPage
+
+        CategoriesPage {}
     }
 }

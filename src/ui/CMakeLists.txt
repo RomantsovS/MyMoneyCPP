@@ -12,6 +12,8 @@ set(mymoney_ui_qml_files
   AccountForm
   AccountPicker
   AccountsPage
+  CategoriesPage
+  CategoryForm
   CategoryPicker
   CurrencyForm
   DateDialog
@@ -41,6 +43,8 @@ qt_add_qml_module(mymoney_ui
   SOURCES
     controllers/account_editor.cpp
     controllers/account_editor.h
+    controllers/category_editor.cpp
+    controllers/category_editor.h
     controllers/currency_editor.cpp
     controllers/currency_editor.h
     controllers/operation_editor.cpp
@@ -53,6 +57,8 @@ qt_add_qml_module(mymoney_ui
     models/account_picker_model.h
     models/category_picker_model.cpp
     models/category_picker_model.h
+    models/category_tree_model.cpp
+    models/category_tree_model.h
     models/currency_list_model.cpp
     models/currency_list_model.h
     money_format.cpp

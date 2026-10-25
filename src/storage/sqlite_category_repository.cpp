@@ -83,4 +83,18 @@ core::Result<std::vector<core::Category>> SqliteCategoryRepository::List() {
       *db_, std::format("{} ORDER BY id", kSelectCategory), ReadCategory);
 }
 
+core::Status SqliteCategoryRepository::Rename(core::CategoryId id,
+                                              std::string_view name) {
+  return db_
+      ->Run("UPDATE category SET name = ?2 WHERE id = ?1", id.value(), name)
+      .and_then([&]() -> core::Status {
+        if (db_->ChangedRows() == 0) {
+          return core::MakeError(
+              core::ErrorCode::kNotFound,
+              std::format("no category with id {}", id.value()));
+        }
+        return {};
+      });
+}
+
 }  // namespace mymoney::storage

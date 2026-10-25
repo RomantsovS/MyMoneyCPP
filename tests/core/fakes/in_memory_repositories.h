@@ -200,6 +200,22 @@ class InMemoryCategoryRepository final : public CategoryRepository {
     return result;
   }
 
+  Status Rename(CategoryId id, std::string_view name) override {
+    const auto it = categories_.find(id);
+    if (it == categories_.end()) {
+      return MakeError(ErrorCode::kNotFound,
+                       std::format("no category with id {}", id.value()));
+    }
+    // Like the UNIQUE index in SQLite (migration 0002): a storage error.
+    if (const Result<Category> other = GetByName(name);
+        other.has_value() && other->id != id) {
+      return MakeError(ErrorCode::kStorage,
+                       "UNIQUE constraint failed: category.name");
+    }
+    it->second.name = std::string(name);
+    return {};
+  }
+
   [[nodiscard]] std::size_t size() const { return categories_.size(); }
 
  private:
