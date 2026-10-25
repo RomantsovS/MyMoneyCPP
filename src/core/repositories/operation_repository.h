@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "core/error.h"
@@ -12,11 +13,27 @@
 
 namespace mymoney::core {
 
-// Which operations List() returns; every part is optional (ADR-0014).
+// The order of List() results: by date, then by id (the order of entry).
+enum class OperationOrder : std::uint8_t {
+  kOldestFirst,  // the CLI's journal
+  kNewestFirst,  // the app's journal (ADR-0019)
+};
+
+// Which operations List() returns; every part is optional (ADR-0014,
+// ADR-0019) and all given parts must match.
 struct OperationFilter {
-  std::optional<std::chrono::year_month_day> from;  // dated on or after
-  std::optional<std::chrono::year_month_day> to;    // dated on or before
-  std::optional<AccountId> account_id;              // that move money here
+  // Every part has a default, so a designated initializer may name only the
+  // parts it needs: List({.category_id = id}).
+  std::optional<std::chrono::year_month_day> from = std::nullopt;  // on/after
+  std::optional<std::chrono::year_month_day> to = std::nullopt;    // on/before
+  std::optional<AccountId> account_id = std::nullopt;  // moves money here
+  // With this category - or, for a group, with any of its categories.
+  std::optional<CategoryId> category_id = std::nullopt;
+  // Whose comment contains this text. Like SQLite's LIKE: case is ignored
+  // for Latin letters only; every character matches itself.
+  std::optional<std::string> comment_contains = std::nullopt;
+  OperationOrder order = OperationOrder::kOldestFirst;
+  std::optional<int> limit = std::nullopt;  // at most this many, in `order`
 };
 
 // Storage of operations and their movements. Implemented with SQLite in M2.
@@ -31,10 +48,17 @@ class OperationRepository {
   // kNotFound if there is no operation with this id.
   [[nodiscard]] virtual Result<Operation> Get(OperationId id) = 0;
 
-  // The operations matching `filter`, ordered by date, then by id (the order
-  // in which they were entered).
+  // The operations matching `filter`, in `filter.order`.
   [[nodiscard]] virtual Result<std::vector<Operation>> List(
       const OperationFilter& filter) = 0;
+
+  // Makes operation `id` the given draft - its date, type, comment and all
+  // movements - in one transaction: all or nothing (ADR-0019). Returns it
+  // with the same id; kNotFound if there is no operation with this id.
+  [[nodiscard]] virtual Result<Operation> Replace(
+      OperationId id, const OperationDraft& draft) = 0;
+  // Removes the operation with its movements; kNotFound if there is none.
+  [[nodiscard]] virtual Status Delete(OperationId id) = 0;
 
   // The most recently entered operation of this type - the highest id, not
   // the latest date - so a form can start with its accounts (ADR-0017).

@@ -1,6 +1,6 @@
 # ADR-0016: First UI — accounts and balances (M4)
 
-- **Status:** Accepted · 2026-10-21
+- **Status:** Accepted · 2026-10-21 · amended 2026-10-25 (see the end)
 - **Plan items:** D10, D11, D12, D19, M4
 - **Builds on:** ADR-0002 (Qt only in `ui`/`app`), ADR-0012 (domain model), ADR-0013 (storage),
   ADR-0014 (database file location)
@@ -63,3 +63,38 @@ its version; all wiring of repositories and services lives in the CLI.
   uninstalling the app deletes it.
 - Adding Journal or Reports later means adding a tab with its own stack; the Accounts page
   does not change.
+
+## Amendment · 2026-10-25 (M6)
+
+Found on the phone once the Journal tab existed:
+
+- **Accent colour:** `Material.accent: Material.Teal` on the main window. The active tab uses
+  the accent colour; the default accent looked grey in the dark theme, so the active tab
+  seemed less visible than the inactive ones.
+- **Swipe between tabs:** a `SwipeView` replaces the `StackLayout` (decision 2). Tabs switch
+  by tapping the tab bar or by swiping anywhere on a tab's first page. On a sub-page — for
+  example the operation form — swiping is off, so a sideways gesture cannot leave a form
+  that is being edited.
+- **Back gesture / back button:** handled in QML with `Keys.onBackPressed` on the swipe view,
+  not with `ApplicationWindow.onClosing`. In Qt 6.12 on Android a back key that no item
+  accepts moves the app to the background without a close request (`androidjniinput.cpp`),
+  so `onClosing` never ran on the phone. Back goes one page back in the current tab; on the
+  Journal's first page it switches to Accounts; on Accounts a first back shows "Go back again
+  to exit", and a second one within two seconds closes the app (`Qt.quit()`: Qt finishes the
+  activity and ends the process). Dialogs set `focus: true`, so they get the key and close
+  themselves first (a popup handles back only with the focus). Tab buttons do not take the
+  focus. After the back *gesture* — whose touch Android takes back from the app — the swipe
+  view no longer animates to a new index (a tab tap or the switch to Accounts), so every
+  index change that is not a swipe in progress places it with `positionViewAtIndex()`; a
+  tab change therefore jumps instead of sliding.
+- **Back key release:** Qt 6.12 sometimes reports a handled back *press* as not accepted (a
+  race between Android's thread and Qt's GUI thread in `flushWindowSystemEvents()`), and then
+  moves the app to the background after all — about one back in 30 in the emulator tests.
+  The pages therefore accept the back key's *release* too (Qt backgrounds the app only when
+  both look unaccepted), and when a closing dialog leaves the focus on the window's root
+  item, the focus goes straight back to the pages, so that release is accepted as well.
+  Reported to Qt with the analysis.
+- **Navigation bar:** Android draws the app edge to edge. `ApplicationWindow` keeps only its
+  content out of the system bars, and Material's `TabBar` (unlike its `ToolBar`) ignores
+  them, so with 3-button navigation the tab bar lay under the system buttons. The tab bar's
+  padding follows `SafeArea.margins`; its background still reaches the screen edge.

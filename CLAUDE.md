@@ -75,7 +75,8 @@ Start `wsl` with a timeout (`Start-Process ... WaitForExit`): a distro waiting f
 blocks every command.
 
 **Android** builds normally run in Qt Creator (kits `Qt 6.12.0 for Android arm64-v8a` for
-the Pixel 6, `x86_64` for the emulator AVD `Emulator_Pixel6`). From the terminal, reuse Qt Creator's
+the Pixel 6, `x86_64` for the emulator AVDs `Emulator_Pixel6` (3-button navigation) and
+`Emulator_Pixel6_Gestures` (gesture navigation, like the phone)). From the terminal, reuse Qt Creator's
 build folder; it uses the NMake/JOM generator:
 
 ```bat
@@ -90,6 +91,14 @@ cmake --build build\Qt_6_12_0_for_Android_arm64_v8a_Debug --target apk
 keeps output pipes open: do not wait on piped Gradle output; check for the `.apk` file instead.
 The daemon also keeps a redirected log file open: give every build a new log file name, and
 always compare the `.apk` timestamp - an old log can look like a successful build.
+
+**Android back-navigation smoke test** (ADR-0019 amendment): start an emulator
+(`emulator -avd <name>` via `Start-Process`, not `cmd /c start`; after an emulator was killed,
+add `-no-snapshot-load` once), build the APK for its ABI, then
+`powershell -ExecutionPolicy Bypass -File tools\android-back-test.ps1 -Device emulator-5554`.
+It installs with `install -r` (data kept), prints PASS/FAIL per check, exits 1 on a failure and
+leaves screenshots in `build\android-back-test\`. Run it on both emulators after changes to
+navigation, dialogs or `Main.qml`; a single run can hide a timing bug, so repeat it.
 
 **Static analysis** (Qt Creator's LLVM 22), using the compile commands of a build folder:
 
@@ -108,3 +117,13 @@ report 0 warnings too (ADR-0016).
 - `mymoney-cli.exe` uses a UTF-8 manifest; `[Console]::OutputEncoding = [Text.Encoding]::UTF8`
   makes PowerShell show its Cyrillic output correctly.
 - Line endings are LF everywhere (`.gitattributes`).
+- Android back (gesture or button) arrives as `Qt.Key_Back` at the focused item. In Qt 6.12 a
+  back key that no item accepts moves the app to the background — `ApplicationWindow.onClosing`
+  never runs. Back is handled in `Main.qml` (`Keys.onBackPressed`); controls outside the pages
+  must not take focus (`focusPolicy: Qt.NoFocus`), and every `Dialog`/`Popup`/`Menu` needs
+  `focus: true` and `closePolicy: Popup.CloseOnEscape | Popup.CloseOnReleaseOutside` (the edge
+  gesture's first touch would close it on *press* outside, and back would then act twice).
+  Qt sometimes reports a handled back press as unaccepted (a race), so the back *release* is
+  accepted too, and the focus never stays on the window's root item (`Main.qml`).
+- Android draws the app edge to edge: controls outside the window's content (the footer tab
+  bar) must take `SafeArea.margins` as padding themselves.

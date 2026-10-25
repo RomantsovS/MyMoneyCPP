@@ -32,6 +32,7 @@
 #include "ui/models/category_picker_model.h"
 #include "ui/models/category_tree_model.h"
 #include "ui/models/currency_list_model.h"
+#include "ui/models/journal_model.h"
 #include "ui/singleton_instance.h"
 
 // Registers the static QML module MyMoney.UI (see src/ui/CMakeLists.txt).
@@ -47,6 +48,7 @@ using mymoney::ui::CategoryPickerModel;
 using mymoney::ui::CategoryTreeModel;
 using mymoney::ui::CurrencyEditor;
 using mymoney::ui::CurrencyListModel;
+using mymoney::ui::JournalModel;
 using mymoney::ui::OperationEditor;
 using mymoney::ui::SingletonInstance;
 
@@ -101,6 +103,9 @@ int main(int argc, char* argv[]) {
   CategoryTreeModel category_tree(services.categories());
   CategoryEditor category_editor(services.categories(),
                                  services.category_service());
+  JournalModel journal(services.accounts(), services.categories(),
+                       services.currencies(), services.operations(),
+                       mymoney::ui::LocalToday);
   OperationEditor operation_editor(services.accounts(), services.categories(),
                                    services.currencies(), services.operations(),
                                    services.operation_service(),
@@ -118,6 +123,13 @@ int main(int argc, char* argv[]) {
   // A new operation changes balances.
   QObject::connect(&operation_editor, &OperationEditor::saved, &account_list,
                    &AccountListModel::reload);
+  // The journal shows operations and the names of accounts and categories.
+  QObject::connect(&operation_editor, &OperationEditor::saved, &journal,
+                   &JournalModel::reload);
+  QObject::connect(&account_editor, &AccountEditor::saved, &journal,
+                   &JournalModel::reload);
+  QObject::connect(&category_editor, &CategoryEditor::saved, &journal,
+                   &JournalModel::reload);
 
   // D12, option B: QML gets exactly these objects as its singletons.
   const SingletonInstance<AccountListModel>::Registration account_list_qml(
@@ -138,6 +150,7 @@ int main(int argc, char* argv[]) {
       &category_editor);
   const SingletonInstance<OperationEditor>::Registration operation_editor_qml(
       &operation_editor);
+  const SingletonInstance<JournalModel>::Registration journal_qml(&journal);
 
   // Main.qml declares "required property string appVersion".
   return RunQml(

@@ -21,6 +21,13 @@ Dialog {
     parent: Overlay.overlay
     anchors.centerIn: parent
     width: Math.min(parent.width - 32, 400)
+    // With the focus, Back closes the dialog (Popup.CloseOnEscape) instead
+    // of reaching the page below it. "Release" outside, not "press": the back
+    // gesture starts with a touch at the screen edge that Android then takes
+    // back - on press it would close the dialog, and the back key would then
+    // act on the page as well.
+    focus: true
+    closePolicy: Popup.CloseOnEscape | Popup.CloseOnReleaseOutside
     modal: true
     title: qsTr("Date")
     standardButtons: Dialog.Cancel

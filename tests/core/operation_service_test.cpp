@@ -129,6 +129,106 @@ TEST_F(OperationServiceTest, RejectsUnknownCategory) {
   EXPECT_EQ(operation.error().code, ErrorCode::kNotFound);
 }
 
+// --- Update and Delete (ADR-0019)
+
+TEST_F(OperationServiceTest, UpdatesAnOperationInPlace) {
+  const Operation posted =
+      operation_service_
+          .Post(OperationDraft::Expense(Date(2026, 10, 18), cash_.id, food_.id,
+                                        Eur(1250), "lunch")
+                    .value())
+          .value();
+  const OperationDraft changed =
+      OperationDraft::Expense(Date(2026, 10, 17), card_.id, food_.id, Eur(1500),
+                              "dinner")
+          .value();
+
+  const Result<Operation> updated =
+      operation_service_.Update(posted.id, changed);
+
+  ASSERT_TRUE(updated.has_value()) << updated.error().message;
+  EXPECT_EQ(updated->id, posted.id);
+  EXPECT_EQ(operations_.Get(posted.id)->draft, changed);
+  EXPECT_EQ(operations_.size(), 1U);
+}
+
+TEST_F(OperationServiceTest, UpdateChecksTheNewDraftLikePost) {
+  const Operation posted =
+      operation_service_
+          .Post(OperationDraft::Expense(Date(2026, 10, 18), cash_.id, food_.id,
+                                        Eur(100), "")
+                    .value())
+          .value();
+  // An income category for an expense.
+  const Result<Operation> updated = operation_service_.Update(
+      posted.id, OperationDraft::Expense(Date(2026, 10, 18), cash_.id,
+                                         salary_.id, Eur(100), "")
+                     .value());
+
+  ASSERT_FALSE(updated.has_value());
+  EXPECT_EQ(updated.error().code, ErrorCode::kRuleViolation);
+  EXPECT_EQ(operations_.Get(posted.id)->draft.movements().front().category_id,
+            food_.id);
+}
+
+TEST_F(OperationServiceTest, OperationsOfArchivedAccountsAreFrozen) {
+  const Operation posted =
+      operation_service_
+          .Post(OperationDraft::Transfer(Date(2026, 10, 18), cash_.id, Eur(100),
+                                         card_.id, Eur(100), "")
+                    .value())
+          .value();
+  ASSERT_TRUE(account_service_.Archive(card_.id).has_value());
+
+  // The archived account is only the target: still frozen.
+  const Result<Operation> updated = operation_service_.Update(
+      posted.id, OperationDraft::Expense(Date(2026, 10, 18), cash_.id, food_.id,
+                                         Eur(100), "")
+                     .value());
+  const Status deleted = operation_service_.Delete(posted.id);
+
+  ASSERT_FALSE(updated.has_value());
+  EXPECT_EQ(updated.error().code, ErrorCode::kRuleViolation);
+  ASSERT_FALSE(deleted.has_value());
+  EXPECT_EQ(deleted.error().code, ErrorCode::kRuleViolation);
+  EXPECT_EQ(operations_.Get(posted.id)->draft, posted.draft);
+
+  // Unarchived, it can be corrected again.
+  ASSERT_TRUE(account_service_.Unarchive(card_.id).has_value());
+  EXPECT_TRUE(operation_service_.Delete(posted.id).has_value());
+  EXPECT_EQ(operations_.size(), 0U);
+}
+
+TEST_F(OperationServiceTest, UpdateCannotMoveAnOperationToAnArchivedAccount) {
+  const Operation posted =
+      operation_service_
+          .Post(OperationDraft::Expense(Date(2026, 10, 18), cash_.id, food_.id,
+                                        Eur(100), "")
+                    .value())
+          .value();
+  ASSERT_TRUE(account_service_.Archive(card_.id).has_value());
+
+  const Result<Operation> updated = operation_service_.Update(
+      posted.id, OperationDraft::Expense(Date(2026, 10, 18), card_.id, food_.id,
+                                         Eur(100), "")
+                     .value());
+
+  ASSERT_FALSE(updated.has_value());
+  EXPECT_EQ(updated.error().code, ErrorCode::kRuleViolation);
+}
+
+TEST_F(OperationServiceTest, UpdateAndDeleteOfAnUnknownOperationAreNotFound) {
+  const OperationDraft draft =
+      OperationDraft::Expense(Date(2026, 10, 18), cash_.id, food_.id, Eur(100),
+                              "")
+          .value();
+
+  EXPECT_EQ(operation_service_.Update(OperationId(999), draft).error().code,
+            ErrorCode::kNotFound);
+  EXPECT_EQ(operation_service_.Delete(OperationId(999)).error().code,
+            ErrorCode::kNotFound);
+}
+
 // GoogleMock example: here the *interaction* is the point - a draft that
 // breaks a rule must never reach the repository's Add().
 class MockOperationRepository : public OperationRepository {
@@ -138,6 +238,9 @@ class MockOperationRepository : public OperationRepository {
   MOCK_METHOD(Result<Operation>, Get, (OperationId id), (override));
   MOCK_METHOD(Result<std::vector<Operation>>, List,
               (const OperationFilter& filter), (override));
+  MOCK_METHOD(Result<Operation>, Replace,
+              (OperationId id, const OperationDraft& draft), (override));
+  MOCK_METHOD(Status, Delete, (OperationId id), (override));
   MOCK_METHOD(Result<Operation>, Latest, (OperationType type), (override));
   MOCK_METHOD(Result<std::vector<CategoryId>>, RecentCategories,
               (OperationType type, int limit), (override));

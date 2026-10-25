@@ -207,7 +207,7 @@ erDiagram
 - **Converted balance** = balance × rate of that date (latest rate on or before it) —
   [ADR-0009](adr/0009-exchange-rates-for-balance-reports.md), *proposed*.
 - **Income/expense report** = sums of movements grouped by category tree and currency.
-- The exact table and column design is done in M2 (D4, D7).
+- Tables and columns: migrations `0001`–`0003` (ADR-0013, ADR-0015).
 
 ### 4.4 Data storage
 
@@ -275,7 +275,7 @@ Installed and verified (2026-10-12/13):
 | Qt Creator | **20.0.2** | IDE, debugger, Android deployment |
 | MSVC | Visual Studio Community 2026 (18.1) | desktop compiler |
 | CDB | Windows Kits 10 | desktop debugger |
-| CMake / Ninja (Windows) | **3.30.5** / **1.12.1** from the Qt installer (`C:\Qt\Tools`) — used by Qt Creator. Visual Studio also bundles CMake **4.3.1**. None of them is on `PATH`. Which CMake to use and the minimum version → M0 design | build system |
+| CMake / Ninja (Windows) | **3.30.5** / **1.12.1** from the Qt installer (`C:\Qt\Tools`) — used by Qt Creator. Visual Studio also bundles CMake **4.3.1**. None of them is on `PATH`. The project uses Qt's CMake; minimum 3.30 (ADR-0011) | build system |
 | JDK | Temurin 17.0.20 | Android build (Gradle) |
 | Android SDK | platform 37, build-tools, cmdline-tools 23.0, emulator | Android build & run |
 | Android NDK | 27.2.12479018 (clang 18.0.3, libc++) | Android C++ compiler |
@@ -306,9 +306,9 @@ To set up later:
 | Dependency | Used by | How it is obtained |
 |---|---|---|
 | C++23 standard library | all | toolchain |
-| **SQLite** (amalgamation) | `storage` | CMake `FetchContent` or vendored in `third_party/`, pinned version (decided in M2) |
+| **SQLite** (amalgamation) | `storage` | CMake `FetchContent` of the amalgamation, pinned by its SHA3-256 hash (ADR-0013) |
 | **GoogleTest / GoogleMock** | tests | CMake `FetchContent`, pinned tag (ADR-0003) |
-| Command-line parser (D22) | `cli` | open: hand-written, CLI11, Abseil flags, … |
+| Command-line parser | `cli` | none: hand-written instead (D22, ADR-0014) |
 | Qt Core, Qml, Quick, Quick Controls | `ui`, `app` | Qt installer |
 | Qt Graphs *(later)* | `ui` | Qt installer |
 | Qt Linguist tools *(later)* | `ui` | Qt installer |
@@ -506,14 +506,17 @@ Each milestone is small enough for a few evenings. "Learn" lists the topics we d
 - **Done when:** a fresh phone can be set up in the app alone: currency, accounts, categories.
 - **Decisions:** D27 ✔ — design in [ADR-0018](adr/0018-category-screens.md).
 
-### M6 — Journal (UI) (in progress)
+### M6 — Journal (UI) — ✅ done 2026-10-25
 - **Build:** Journal as the second bottom tab; one month at a time (newest first, day
   headers); filters for account, category or group, and comment text (SQL `LIKE` over the
   whole history, at most 200 results); editing in the operation form and deleting with a
   confirmation; `OperationRepository::Replace/Delete`, `OperationService::Update/Delete`;
-  operations on archived accounts are frozen.
+  operations on archived accounts are frozen. Found on the phone: swiping between tabs,
+  Android back navigation, the tab bar above the navigation bar (ADR-0016 amendment), and an
+  adb smoke test of the back navigation on two emulators (`tools/android-back-test.ps1`,
+  ADR-0019 amendment).
 - **Learn:** filtering in SQL vs proxy models; model updates after edits; date sections;
-  replacing rows in one transaction.
+  replacing rows in one transaction; Android back and edge-to-edge in Qt; UI tests with adb.
 - **Done when:** a month of test data is easy to browse on the phone.
 - **Decisions:** D28 ✔ — design in [ADR-0019](adr/0019-journal.md).
 
@@ -587,48 +590,27 @@ translations (D19).
 
 ### Open decisions
 
-**D4 — ID type.** INTEGER autoincrement (simple) or UUID (needed for merging data from
-several devices — D14). *Recommendation:* INTEGER now; a `uuid` column can be added if sync comes.
+Only what is still open. Decided items are in the table above, with the reasons in their ADRs.
 
-**D7 — Migrations and date storage.** Numbered `.sql` scripts embedded in the binary +
-`PRAGMA user_version`. Dates as ISO `TEXT` (`YYYY-MM-DD`) or integer day numbers.
-*Recommendation:* `.sql` scripts, ISO `TEXT`.
+**D13 — Backup (before M9).** Manual export of the DB file via the Android share sheet, and
+import back. Android deletes app data on uninstall, so this must exist before daily use.
 
-**D10 — Visual style.** Qt Quick Controls Material (native look on Android), Basic, Fusion,
-or a custom style. *Recommendation:* Material, light + dark.
+**D14 — Sync between devices (later).** Copy the DB file manually; export/import of changes;
+a small server. The ids are INTEGER (D4, ADR-0012); merging data from two devices would need
+an extra `uuid` column.
 
-**D11 — Navigation.** Bottom tabs (Accounts · Journal · Reports) + `StackView` per tab, or a
-`Drawer` menu. *Recommendation:* bottom tabs; same layout on desktop for now.
+**D15 — Import from the 1C app (M8).** Export format (JSON is probably the easiest to write
+in 1C), what to do with labels (a table without UI, or drop them), exchange-rate history.
+Already decided: level-3 categories are merged into their parents (ADR-0006).
 
-**D12 — How QML gets C++ objects.**
-(A) engine-created singletons — simple, but they must find services themselves (global state);
-(B) objects created in `main.cpp`, exposed with `QML_SINGLETON` + static `create()` factory —
-explicit dependency injection, type-checked;
-(C) properties of the root window via `setInitialProperties` — explicit, but passed down by hand;
-(D) context properties — old style, avoid. *Recommendation:* B.
+**D19 — UI language (later).** The UI is English with every string in `qsTr()` (ADR-0016).
+Open: when to add the Russian translation (Qt Linguist), and how the core's English error
+messages get translated texts.
 
-**D13 — Backup.** Manual export of the DB file via Android share sheet; import back.
-Android deletes app data on uninstall — this must exist before daily use (M9).
-
-**D14 — Sync (later).** Copy the DB file manually; change export/import; a small server.
-Affects D4.
-
-**D15 — Import.** Export format from the 1C app (JSON is probably the easiest to write
-in 1C), import labels into a table without UI or drop them, exchange-rate history.
-
-**D19 — UI language(s).** English, another language, or both. `qsTr()` from the start anyway.
-
-**D21 — Exchange rates.** Decided (2026-10-16): download from the internet, configurable
-currency list, manual + on app start; rates stored as published (no global base currency;
-display currency chosen per report); balance history not MVP. Open: which rate source —
-see ADR-0009.
-
-**D22 — CLI argument parsing.** Hand-written (learning, no dependency), CLI11 (popular,
-header-only), Abseil flags (Google family, heavy), cxxopts (small).
-
-**D23 — Logging in `core`/`storage`.** These layers have no Qt. Options: no logging (errors
-are returned as values), a small logging interface implemented by each frontend, or a library
-(spdlog, Abseil log). *Recommendation:* a small interface — errors are values anyway.
+**D21 — Exchange rates (M7).** Decided (2026-10-16): downloaded from the internet for a
+configurable currency list, manually or on app start; stored as published (no global base
+currency; the display currency is chosen per report); balance history not MVP. Open: which
+rate source (ADR-0009).
 
 ---
 

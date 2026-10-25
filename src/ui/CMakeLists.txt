@@ -17,6 +17,8 @@ set(mymoney_ui_qml_files
   CategoryPicker
   CurrencyForm
   DateDialog
+  JournalFilter
+  JournalPage
   Main
   OperationForm
   StartupError
@@ -61,6 +63,8 @@ qt_add_qml_module(mymoney_ui
     models/category_tree_model.h
     models/currency_list_model.cpp
     models/currency_list_model.h
+    models/journal_model.cpp
+    models/journal_model.h
     money_format.cpp
     money_format.h
     singleton_instance.h

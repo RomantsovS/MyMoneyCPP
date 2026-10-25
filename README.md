@@ -8,9 +8,11 @@ This is a personal learning project. Design comes first — see
 [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md) and the decision records in
 [`docs/adr/`](docs/adr/).
 
-**Status:** M5b (category screens) done — on Android and the desktop the Qt app shows
-accounts with balances, manages accounts, groups and categories, and enters expenses, income
-and transfers. 192 unit tests (154 without Qt, also on Linux). Next: the journal (M6).
+**Status:** M6 (journal) done — on Android and the desktop the Qt app shows accounts with
+balances, manages accounts, groups and categories, enters expenses, income and transfers, and
+browses, filters, edits and deletes them in the journal. 223 unit tests (173 without Qt, also
+on Linux), plus an adb smoke test of the Android back navigation
+(`tools/android-back-test.ps1`). Next: reports and currency conversion (M7).
 
 ## Project layout
 

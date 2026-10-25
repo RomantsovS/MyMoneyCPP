@@ -12,6 +12,7 @@
 #include "core/repositories/account_repository.h"
 #include "core/repositories/category_repository.h"
 #include "core/repositories/operation_repository.h"
+#include "core/strong_id.h"
 
 namespace mymoney::core {
 namespace {
@@ -41,6 +42,47 @@ Result<Operation> OperationService::Post(const OperationDraft& draft) {
     }
   }
   return operations_->Add(draft);
+}
+
+Result<Operation> OperationService::Update(OperationId id,
+                                           const OperationDraft& draft) {
+  const Result<Operation> stored = operations_->Get(id);
+  if (!stored) {
+    return std::unexpected(stored.error());
+  }
+  if (Status status = CheckAccountsActive(stored->draft); !status) {
+    return std::unexpected(std::move(status).error());
+  }
+  for (const Movement& movement : draft.movements()) {
+    if (Status status = CheckMovement(movement, draft.type()); !status) {
+      return std::unexpected(std::move(status).error());
+    }
+  }
+  return operations_->Replace(id, draft);
+}
+
+Status OperationService::Delete(OperationId id) {
+  return operations_->Get(id)
+      .and_then([&](const Operation& stored) {
+        return CheckAccountsActive(stored.draft);
+      })
+      .and_then([&] { return operations_->Delete(id); });
+}
+
+Status OperationService::CheckAccountsActive(const OperationDraft& stored) {
+  for (const Movement& movement : stored.movements()) {
+    const Result<Account> account = accounts_->Get(movement.account_id);
+    if (!account) {
+      return std::unexpected(account.error());
+    }
+    if (account->archived) {
+      return MakeError(ErrorCode::kRuleViolation,
+                       std::format("account '{}' is archived: unarchive it to "
+                                   "change its operations",
+                                   account->name));
+    }
+  }
+  return {};
 }
 
 Status OperationService::CheckMovement(const Movement& movement,

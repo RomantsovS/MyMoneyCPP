@@ -29,6 +29,11 @@ class SqliteOperationRepository final : public core::OperationRepository {
   core::Result<std::vector<core::Operation>> List(
       const core::OperationFilter& filter) override;
 
+  // In one transaction: a refused change leaves the old operation intact.
+  core::Result<core::Operation> Replace(
+      core::OperationId id, const core::OperationDraft& draft) override;
+  core::Status Delete(core::OperationId id) override;
+
   core::Result<core::Operation> Latest(core::OperationType type) override;
 
   core::Result<std::vector<core::CategoryId>> RecentCategories(

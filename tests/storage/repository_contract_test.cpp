@@ -421,6 +421,166 @@ TYPED_TEST(RepositoryContractTest, ListsOperationsByDateAndFilter) {
             (std::vector<Operation>{}));
 }
 
+// --- Journal filters, Replace and Delete (ADR-0019)
+
+TYPED_TEST(RepositoryContractTest, FiltersByCategoryOrItsGroup) {
+  const Account card = this->AddAccount("Card EUR");
+  const Category food = this->AddGroup("Food", CategoryKind::kExpense);
+  const Category cafe =
+      this->AddCategory("Cafe", CategoryKind::kExpense, food.id);
+  const Category taxi = this->AddCategory("Taxi", CategoryKind::kExpense);
+  auto& operations = this->repos_.operations;
+  std::vector<Operation> added;
+  for (const Category& category : {cafe, taxi}) {
+    added.push_back(operations
+                        .Add(OperationDraft::Expense(Date(2026, 10, 1), card.id,
+                                                     category.id, Eur(100), "")
+                                 .value())
+                        .value());
+  }
+
+  EXPECT_EQ(operations.List({.category_id = taxi.id}),
+            std::vector<Operation>{added.at(1)});
+  // A group: all of its categories.
+  EXPECT_EQ(operations.List({.category_id = food.id}),
+            std::vector<Operation>{added.at(0)});
+}
+
+TYPED_TEST(RepositoryContractTest, FiltersByCommentLikeSqlitesLike) {
+  const Account card = this->AddAccount("Card EUR");
+  const Category food = this->AddCategory("Food", CategoryKind::kExpense);
+  auto& operations = this->repos_.operations;
+  std::vector<Operation> added;
+  for (const std::string_view comment :
+       {"Lunch at the CAFE", "кофе", "100% juice", "a_b", "axb"}) {
+    added.push_back(
+        operations
+            .Add(OperationDraft::Expense(Date(2026, 10, 1), card.id, food.id,
+                                         Eur(100), std::string(comment))
+                     .value())
+            .value());
+  }
+  const auto with_comment = [&](const std::string& text) {
+    return operations.List({.comment_contains = text});
+  };
+
+  // Case is ignored for Latin letters...
+  EXPECT_EQ(with_comment("cafe"), std::vector<Operation>{added.at(0)});
+  // ...but not for Cyrillic ones (a SQLite limitation, ADR-0019).
+  EXPECT_EQ(with_comment("Кофе"), std::vector<Operation>{});
+  EXPECT_EQ(with_comment("кофе"), std::vector<Operation>{added.at(1)});
+  // % and _ mean themselves, not "anything".
+  EXPECT_EQ(with_comment("%"), std::vector<Operation>{added.at(2)});
+  EXPECT_EQ(with_comment("a_b"), std::vector<Operation>{added.at(3)});
+}
+
+TYPED_TEST(RepositoryContractTest, ListsNewestFirstWithALimit) {
+  const Account card = this->AddAccount("Card EUR");
+  const Category food = this->AddCategory("Food", CategoryKind::kExpense);
+  auto& operations = this->repos_.operations;
+  std::vector<Operation> added;
+  // Entered in this order; two on the same day.
+  for (const auto& date :
+       {Date(2026, 10, 5), Date(2026, 10, 1), Date(2026, 10, 5)}) {
+    added.push_back(
+        operations
+            .Add(OperationDraft::Expense(date, card.id, food.id, Eur(100), "")
+                     .value())
+            .value());
+  }
+
+  EXPECT_EQ(operations.List({.order = OperationOrder::kNewestFirst}),
+            (std::vector<Operation>{added.at(2), added.at(0), added.at(1)}));
+  EXPECT_EQ(
+      operations.List({.order = OperationOrder::kNewestFirst, .limit = 2}),
+      (std::vector<Operation>{added.at(2), added.at(0)}));
+  EXPECT_EQ(operations.List({.limit = 1}), std::vector<Operation>{added.at(1)});
+}
+
+TYPED_TEST(RepositoryContractTest, ReplacesAnOperationKeepingItsId) {
+  const Account card = this->AddAccount("Card EUR");
+  const Account cash = this->AddAccount("Cash EUR");
+  const Category food = this->AddCategory("Food", CategoryKind::kExpense);
+  auto& operations = this->repos_.operations;
+  const Operation expense =
+      operations
+          .Add(OperationDraft::Expense(Date(2026, 10, 1), card.id, food.id,
+                                       Eur(1250), "lunch")
+                   .value())
+          .value();
+  // Even another type: the movements are replaced as a whole.
+  const OperationDraft transfer =
+      OperationDraft::Transfer(Date(2026, 10, 2), card.id, Eur(5000), cash.id,
+                               Eur(5000), "ATM")
+          .value();
+
+  const Result<Operation> replaced = operations.Replace(expense.id, transfer);
+
+  ASSERT_TRUE(replaced.has_value()) << replaced.error().message;
+  EXPECT_EQ(replaced->id, expense.id);
+  EXPECT_EQ(operations.Get(expense.id)->draft, transfer);
+  EXPECT_EQ(operations.SumMovements(card.id, std::nullopt), -5000);
+  EXPECT_EQ(operations.SumMovements(cash.id, std::nullopt), 5000);
+  EXPECT_EQ(operations.List({})->size(), 1U);
+}
+
+TYPED_TEST(RepositoryContractTest, ARefusedReplaceKeepsTheOldOperation) {
+  const Account card = this->AddAccount("Card EUR");
+  const Category food = this->AddGroup("Food", CategoryKind::kExpense);
+  const Category cafe =
+      this->AddCategory("Cafe", CategoryKind::kExpense, food.id);
+  auto& operations = this->repos_.operations;
+  const Operation expense =
+      operations
+          .Add(OperationDraft::Expense(Date(2026, 10, 1), card.id, cafe.id,
+                                       Eur(100), "")
+                   .value())
+          .value();
+
+  // The database refuses a movement on a group (migration 0003).
+  const Result<Operation> replaced = operations.Replace(
+      expense.id,
+      OperationDraft::Expense(Date(2026, 10, 1), card.id, food.id, Eur(999), "")
+          .value());
+
+  ASSERT_FALSE(replaced.has_value());
+  EXPECT_EQ(replaced.error().code, ErrorCode::kStorage);
+  EXPECT_EQ(operations.Get(expense.id), expense);
+  EXPECT_EQ(operations.SumMovements(card.id, std::nullopt), -100);
+}
+
+TYPED_TEST(RepositoryContractTest, DeletesAnOperation) {
+  const Account card = this->AddAccount("Card EUR");
+  const Category food = this->AddCategory("Food", CategoryKind::kExpense);
+  auto& operations = this->repos_.operations;
+  const Operation expense =
+      operations
+          .Add(OperationDraft::Expense(Date(2026, 10, 1), card.id, food.id,
+                                       Eur(100), "")
+                   .value())
+          .value();
+
+  ASSERT_TRUE(operations.Delete(expense.id));
+
+  EXPECT_EQ(operations.Get(expense.id).error().code, ErrorCode::kNotFound);
+  EXPECT_EQ(operations.SumMovements(card.id, std::nullopt), 0);
+}
+
+TYPED_TEST(RepositoryContractTest, ReplaceAndDeleteOfAnUnknownIdAreNotFound) {
+  const Account card = this->AddAccount("Card EUR");
+  const Category food = this->AddCategory("Food", CategoryKind::kExpense);
+  const OperationDraft draft =
+      OperationDraft::Expense(Date(2026, 10, 1), card.id, food.id, Eur(100), "")
+          .value();
+
+  EXPECT_EQ(
+      this->repos_.operations.Replace(OperationId(999), draft).error().code,
+      ErrorCode::kNotFound);
+  EXPECT_EQ(this->repos_.operations.Delete(OperationId(999)).error().code,
+            ErrorCode::kNotFound);
+  EXPECT_EQ(this->repos_.operations.List({})->size(), 0U);
+}
+
 TYPED_TEST(RepositoryContractTest, LatestIsTheLastEnteredOfItsType) {
   const Account card = this->AddAccount("Card EUR");
   const Account cash = this->AddAccount("Cash EUR");

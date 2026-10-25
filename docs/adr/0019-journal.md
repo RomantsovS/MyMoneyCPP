@@ -1,6 +1,6 @@
 # ADR-0019: Journal — browsing, editing and deleting operations (M6)
 
-- **Status:** Accepted · 2026-10-25
+- **Status:** Accepted · 2026-10-25 · amended 2026-10-25
 - **Plan items:** D28, M6
 - **Builds on:** ADR-0006 (operations and movements), ADR-0012 (domain model; editing was
   left for M6), ADR-0013 (storage), ADR-0016 (navigation), ADR-0017 (operation form)
@@ -64,3 +64,27 @@ with thousands of operations. No operation can be changed or deleted in the core
   limit.
 - Searching Cyrillic comments ignores case only after a later change (e.g. a folded search
   column or an SQLite function written in C++).
+
+## Amendment · 2026-10-25: testing the back navigation on Android
+
+The Journal brought the first back-navigation bugs that only showed on the phone (ADR-0016,
+amendment): the back gesture moved the app to the background, or left the Journal page on
+screen under the Accounts tab. Desktop tests cannot see them — they depend on Android's back
+gesture, its navigation bar and Qt's Android input code.
+
+- **Smoke test:** `tools/android-back-test.ps1` drives the app with adb on a phone or an
+  emulator: it opens a menu, a sub-page, the Journal tab, the filter dialog and the operation
+  form, goes back from each one, and checks where the app lands; at the end two backs on
+  Accounts must end the process. Back is sent as a key event and, where the device uses
+  gesture navigation, as a swipe from the left edge. Nothing is saved or deleted.
+- **What it checks:** the app's accessibility tree (`uiautomator dump`): Qt Quick reports each
+  control's text and its rectangle on the screen, so the test sees which page is really on
+  screen, not only which tab is selected. Failed checks leave a screenshot in
+  `build/android-back-test/`.
+- **Two emulators:** `Emulator_Pixel6` with 3-button navigation and
+  `Emulator_Pixel6_Gestures` with gesture navigation, like the phone.
+- **Checked against the bugs:** with the M6 fixes reverted, the test fails exactly where the
+  phone did; it also found two new problems — the tab bar under the 3-button navigation bar
+  and Qt's back-press race (both in the ADR-0016 amendment).
+- **Not in CI:** it needs a running device; it is run by hand after changes to navigation,
+  dialogs or `Main.qml`. A desktop Qt Quick Test of `goBack()` may follow later.

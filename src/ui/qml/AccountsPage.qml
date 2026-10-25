@@ -37,6 +37,9 @@ Page {
                 Menu {
                     id: menu
 
+                    // A back gesture's first touch must not close the menu
+                    // (see JournalFilter.qml); back itself closes it.
+                    closePolicy: Popup.CloseOnEscape | Popup.CloseOnReleaseOutside
                     y: menuButton.height
 
                     MenuItem {

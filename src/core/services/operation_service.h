@@ -6,6 +6,7 @@
 #include "core/repositories/account_repository.h"
 #include "core/repositories/category_repository.h"
 #include "core/repositories/operation_repository.h"
+#include "core/strong_id.h"
 
 namespace mymoney::core {
 
@@ -23,9 +24,20 @@ class OperationService {
   // check fails.
   [[nodiscard]] Result<Operation> Post(const OperationDraft& draft);
 
+  // Makes operation `id` the given draft (ADR-0019). The new draft follows
+  // the rules of Post(); in addition every account of the operation as it is
+  // stored must be active - an archived account freezes its history.
+  [[nodiscard]] Result<Operation> Update(OperationId id,
+                                         const OperationDraft& draft);
+
+  // Removes the operation; all of its accounts must be active (ADR-0019).
+  [[nodiscard]] Status Delete(OperationId id);
+
  private:
   [[nodiscard]] Status CheckMovement(const Movement& movement,
                                      OperationType type);
+  // kRuleViolation if one of the operation's accounts is archived.
+  [[nodiscard]] Status CheckAccountsActive(const OperationDraft& stored);
 
   AccountRepository* accounts_;
   CategoryRepository* categories_;

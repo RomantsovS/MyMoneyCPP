@@ -127,7 +127,8 @@ QString OperationEditor::type() const {
 
 void OperationEditor::setType(const QString& type) {
   const std::optional<core::OperationType> new_type = TypeFromText(type);
-  if (!new_type.has_value() || *new_type == type_) {
+  // An edited operation keeps its type (ADR-0019).
+  if (!new_type.has_value() || *new_type == type_ || isEditing()) {
     return;
   }
   type_ = *new_type;
@@ -257,6 +258,7 @@ void OperationEditor::startNew() {
   error_text_.clear();
   saved_text_.clear();
   accounts_chosen_ = false;
+  operation_id_.reset();
   ApplyDefaultAccounts();
   LoadRecentCategories();
   emit changed();
@@ -316,23 +318,91 @@ void OperationEditor::setDate(int year, int month, int day) {
   }
 }
 
+bool OperationEditor::load(qint64 operation_id) {
+  startNew();
+  const core::Result<core::Operation> operation =
+      operations_->Get(core::OperationId(operation_id));
+  if (!operation) {
+    error_text_ = QString::fromStdString(operation.error().message);
+    emit changed();
+    return false;
+  }
+  const core::OperationDraft& draft = operation->draft;
+  const core::Movement& first = draft.movements().front();
+  // An archived account is shown as it is; the core refuses to change its
+  // operations (ADR-0019) and says so on save.
+  std::optional<ChosenAccount> account = LoadAccount(first.account_id);
+  if (!account.has_value()) {
+    error_text_ = tr("The account of this operation cannot be read.");
+    emit changed();
+    return false;
+  }
+  type_ = draft.type();
+  date_ = draft.date();
+  comment_ = QString::fromStdString(draft.comment());
+  // The amounts as the user types them: positive, "." as decimal separator.
+  const core::Money out =
+      first.amount.IsNegative() ? -first.amount : first.amount;
+  amount_text_ = QString::fromStdString(
+      core::FormatAmount(out.minor_units(), account->minor_digits));
+  account_ = std::move(account);
+  if (type_ == core::OperationType::kTransfer) {
+    const core::Movement& in = draft.movements().back();
+    to_account_ = LoadAccount(in.account_id);
+    if (to_account_.has_value()) {
+      amount_in_text_ = QString::fromStdString(core::FormatAmount(
+          in.amount.minor_units(), to_account_->minor_digits));
+    }
+  } else if (first.category_id.has_value()) {
+    if (core::Result<core::Category> category =
+            categories_->Get(*first.category_id)) {
+      category_ = std::move(*category);
+    }
+  }
+  operation_id_ = operation->id;
+  accounts_chosen_ = true;
+  LoadRecentCategories();
+  emit changed();
+  return true;
+}
+
 bool OperationEditor::save() {
-  core::Result<core::Operation> posted = BuildDraft().and_then(
-      [&](const core::OperationDraft& draft) { return service_->Post(draft); });
-  if (!posted || !account_.has_value()) {
-    error_text_ =
-        posted ? QString() : QString::fromStdString(posted.error().message);
+  core::Result<core::Operation> stored =
+      BuildDraft().and_then([&](const core::OperationDraft& draft) {
+        return operation_id_.has_value()
+                   ? service_->Update(*operation_id_, draft)
+                   : service_->Post(draft);
+      });
+  if (!stored) {
+    error_text_ = QString::fromStdString(stored.error().message);
     saved_text_.clear();
     emit changed();
     return false;
   }
-  // The first movement is on the chosen account: negative for an expense and
-  // for the source of a transfer.
-  const core::Money& moved = posted->draft.movements().front().amount;
-  saved_text_ = tr("%1 %2 saved")
-                    .arg(TypeTitle(type_),
-                         FormatMoney(moved.IsNegative() ? -moved : moved,
-                                     account_->minor_digits));
+  saved_text_ = tr("%1 %2 saved").arg(TypeTitle(type_), AmountText(*stored));
+  error_text_.clear();
+  emit changed();
+  emit saved();
+  return true;
+}
+
+bool OperationEditor::deleteOperation() {
+  if (!operation_id_.has_value()) {
+    return false;
+  }
+  // The message describes the operation as it is stored, not the form.
+  const core::Result<core::Operation> stored = operations_->Get(*operation_id_);
+  const core::Status status =
+      stored ? service_->Delete(*operation_id_)
+             : core::Status(std::unexpected(stored.error()));
+  if (!status) {
+    error_text_ = QString::fromStdString(status.error().message);
+    emit changed();
+    return false;
+  }
+  saved_text_ = tr("%1 %2 deleted")
+                    .arg(TypeTitle(stored->draft.type()), AmountText(*stored));
+  operation_id_.reset();
   error_text_.clear();
   emit changed();
   emit saved();
@@ -341,6 +411,17 @@ bool OperationEditor::save() {
 
 // --- Helpers
 // ------------------------------------------------------------------
+
+QString OperationEditor::AmountText(const core::Operation& operation) const {
+  // The first movement is on the (source) account: negative for an expense
+  // and for the source of a transfer.
+  const core::Movement& first = operation.draft.movements().front();
+  const std::optional<ChosenAccount> account = LoadAccount(first.account_id);
+  const core::Money amount =
+      first.amount.IsNegative() ? -first.amount : first.amount;
+  return account.has_value() ? FormatMoney(amount, account->minor_digits)
+                             : QString::fromUtf8(amount.currency().code());
+}
 
 std::optional<OperationEditor::ChosenAccount> OperationEditor::LoadAccount(
     core::AccountId id) const {

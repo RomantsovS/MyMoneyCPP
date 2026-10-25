@@ -6,6 +6,7 @@
 #include <format>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -101,6 +102,40 @@ core::Result<core::OperationDraft> Rebuild(core::OperationId id,
   return Corrupt(id, "unknown operation type");
 }
 
+// Inserts the movements of `draft` for operation `id`, in their order (first
+// out, then in, for a transfer). The caller holds the transaction.
+core::Status InsertMovements(sqlite::Database& db, core::OperationId id,
+                             const core::OperationDraft& draft) {
+  for (const core::Movement& movement : draft.movements()) {
+    const std::optional<std::int64_t> category_id =
+        movement.category_id.transform(
+            [](core::CategoryId category) { return category.value(); });
+    if (core::Status status = db.Run(
+            "INSERT INTO movement (operation_id, account_id, category_id, "
+            "amount_minor) VALUES (?1, ?2, ?3, ?4)",
+            id.value(), movement.account_id.value(), category_id,
+            movement.amount.minor_units());
+        !status) {
+      return status;
+    }
+  }
+  return {};
+}
+
+// A LIKE pattern that matches `text` anywhere, with every character of it
+// meaning itself: % and _ (and the escape character) are escaped.
+std::string ContainsPattern(std::string_view text) {
+  std::string pattern = "%";
+  for (const char c : text) {
+    if (c == '%' || c == '_' || c == '\\') {
+      pattern += '\\';
+    }
+    pattern += c;
+  }
+  pattern += '%';
+  return pattern;
+}
+
 }  // namespace
 
 SqliteOperationRepository::SqliteOperationRepository(sqlite::Database* db)
@@ -124,23 +159,55 @@ core::Result<core::Operation> SqliteOperationRepository::Add(
     return std::unexpected(std::move(status).error());
   }
   const core::OperationId id(db_->LastInsertId());
-
-  for (const core::Movement& movement : draft.movements()) {
-    const std::optional<std::int64_t> category_id =
-        movement.category_id.transform(
-            [](core::CategoryId category) { return category.value(); });
-    if (core::Status status = db_->Run(
-            "INSERT INTO movement (operation_id, account_id, category_id, "
-            "amount_minor) VALUES (?1, ?2, ?3, ?4)",
-            id.value(), movement.account_id.value(), category_id,
-            movement.amount.minor_units());
-        !status) {
-      return std::unexpected(std::move(status).error());
-    }
+  if (core::Status status = InsertMovements(*db_, id, draft); !status) {
+    return std::unexpected(std::move(status).error());
   }
-
   return transaction->Commit().transform(
       [&] { return core::Operation{.id = id, .draft = draft}; });
+}
+
+core::Result<core::Operation> SqliteOperationRepository::Replace(
+    core::OperationId id, const core::OperationDraft& draft) {
+  // One transaction (ADR-0019): if any step fails - e.g. a trigger refuses a
+  // movement - the old operation stays exactly as it was.
+  core::Result<sqlite::Transaction> transaction =
+      sqlite::Transaction::Begin(*db_);
+  if (!transaction) {
+    return std::unexpected(std::move(transaction).error());
+  }
+  if (core::Status status =
+          db_->Run("UPDATE operation SET date = ?2, type = ?3, comment = ?4 "
+                   "WHERE id = ?1",
+                   id.value(), DateToText(draft.date()),
+                   OperationTypeToText(draft.type()), draft.comment());
+      !status) {
+    return std::unexpected(std::move(status).error());
+  }
+  if (db_->ChangedRows() == 0) {
+    return core::MakeError(core::ErrorCode::kNotFound,
+                           std::format("no operation with id {}", id.value()));
+  }
+  if (core::Status status =
+          db_->Run("DELETE FROM movement WHERE operation_id = ?1", id.value())
+              .and_then([&] { return InsertMovements(*db_, id, draft); });
+      !status) {
+    return std::unexpected(std::move(status).error());
+  }
+  return transaction->Commit().transform(
+      [&] { return core::Operation{.id = id, .draft = draft}; });
+}
+
+core::Status SqliteOperationRepository::Delete(core::OperationId id) {
+  // Its movements follow (ON DELETE CASCADE, migration 0001).
+  return db_->Run("DELETE FROM operation WHERE id = ?1", id.value())
+      .and_then([&]() -> core::Status {
+        if (db_->ChangedRows() == 0) {
+          return core::MakeError(
+              core::ErrorCode::kNotFound,
+              std::format("no operation with id {}", id.value()));
+        }
+        return {};
+      });
 }
 
 core::Result<core::Operation> SqliteOperationRepository::Get(
@@ -202,22 +269,37 @@ core::Result<core::Operation> SqliteOperationRepository::Get(
 
 core::Result<std::vector<core::Operation>> SqliteOperationRepository::List(
     const core::OperationFilter& filter) {
-  // Step 1: the ids, in journal order. Every filter part is optional: a NULL
-  // parameter makes its condition true.
+  // Step 1: the ids, in the requested order. Every filter part is optional:
+  // a NULL parameter makes its condition true. A category filter also
+  // matches the categories of a group (c.parent_id). LIMIT -1 means no limit.
+  const std::string_view direction =
+      filter.order == core::OperationOrder::kNewestFirst ? "DESC" : "ASC";
   const core::Result<std::vector<core::OperationId>> ids =
       internal::QueryAll<core::OperationId>(
           *db_,
-          "SELECT o.id FROM operation o "
-          "WHERE (?1 IS NULL OR o.date >= ?1) AND (?2 IS NULL OR o.date <= ?2) "
-          "AND (?3 IS NULL OR EXISTS (SELECT 1 FROM movement m "
-          "WHERE m.operation_id = o.id AND m.account_id = ?3)) "
-          "ORDER BY o.date, o.id",
+          std::format("SELECT o.id FROM operation o "
+                      "WHERE (?1 IS NULL OR o.date >= ?1) "
+                      "AND (?2 IS NULL OR o.date <= ?2) "
+                      "AND (?3 IS NULL OR EXISTS (SELECT 1 FROM movement m "
+                      "WHERE m.operation_id = o.id AND m.account_id = ?3)) "
+                      "AND (?4 IS NULL OR EXISTS (SELECT 1 FROM movement m "
+                      "JOIN category c ON c.id = m.category_id "
+                      "WHERE m.operation_id = o.id "
+                      "AND (c.id = ?4 OR c.parent_id = ?4))) "
+                      "AND (?5 IS NULL OR o.comment LIKE ?5 ESCAPE '\\') "
+                      "ORDER BY o.date {0}, o.id {0} LIMIT ?6",
+                      direction),
           [](const sqlite::Statement& row) -> core::Result<core::OperationId> {
             return core::OperationId(row.Column<std::int64_t>(0));
           },
           filter.from.transform(DateToText), filter.to.transform(DateToText),
           filter.account_id.transform(
-              [](core::AccountId id) { return id.value(); }));
+              [](core::AccountId id) { return id.value(); }),
+          filter.category_id.transform(
+              [](core::CategoryId id) { return id.value(); }),
+          filter.comment_contains.transform(
+              [](const std::string& text) { return ContainsPattern(text); }),
+          filter.limit.value_or(-1));
   if (!ids) {
     return std::unexpected(ids.error());
   }

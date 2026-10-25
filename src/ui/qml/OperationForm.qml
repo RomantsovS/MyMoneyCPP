@@ -15,7 +15,7 @@ import MyMoney.UI
 Page {
     id: page
 
-    // A row "caption · value ▸" that opens a picker.
+    // A row "caption · value ›" that opens a picker.
     component PickerRow: ItemDelegate {
         id: row
 
@@ -36,16 +36,24 @@ Page {
                 Layout.fillWidth: true
             }
             Label {
-                text: "▸"
+                text: "›"
             }
         }
     }
 
+    // -1: a new operation; otherwise the id of the one to edit (ADR-0019).
+    // Set by the page that pushes this one.
+    property double operationId: -1
+
     readonly property bool isTransfer: OperationEditor.type === "transfer"
 
-    title: qsTr("New operation")
+    title: OperationEditor.isEditing ? qsTr("Edit operation") : qsTr("New operation")
 
     Component.onCompleted: {
+        if (page.operationId >= 0) {
+            OperationEditor.load(page.operationId);
+            return;  // editing: no keyboard until the user taps a field
+        }
         OperationEditor.startNew();
         amountField.forceActiveFocus();
         // Opens the keyboard without a tap. Qt.inputMethod is declared as a
@@ -96,6 +104,8 @@ Page {
 
             TabBar {
                 Layout.fillWidth: true
+                // An edited operation keeps its type.
+                enabled: !OperationEditor.isEditing
                 currentIndex: ["expense", "income", "transfer"].indexOf(OperationEditor.type)
 
                 TabButton {
@@ -227,6 +237,36 @@ Page {
                 color: Material.color(Material.Red)
                 text: OperationEditor.errorText
             }
+
+            // Only for an existing operation; asks first (ADR-0019).
+            Button {
+                visible: OperationEditor.isEditing
+                Layout.topMargin: 16
+                flat: true
+                Material.foreground: Material.Red
+                text: qsTr("Delete operation")
+                onClicked: confirmDelete.open()
+            }
+        }
+    }
+
+    Dialog {
+        id: confirmDelete
+
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        modal: true
+        // With the focus, Back closes the dialog instead of leaving the form;
+        // "release" outside, so a back gesture's first touch does not close
+        // it (see JournalFilter.qml).
+        focus: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnReleaseOutside
+        title: qsTr("Delete this operation?")
+        standardButtons: Dialog.Ok | Dialog.Cancel
+
+        onAccepted: {
+            if (OperationEditor.deleteOperation())
+                page.StackView.view.pop();
         }
     }
 

@@ -21,6 +21,7 @@
 #include "core/repositories/currency_repository.h"
 #include "core/repositories/operation_repository.h"
 #include "core/services/operation_service.h"
+#include "core/strong_id.h"
 
 class QJSEngine;
 class QQmlEngine;
@@ -74,7 +75,11 @@ class OperationEditor : public QObject {
   Q_PROPERTY(bool valid READ valid NOTIFY changed FINAL)
   // Empty unless the last save() failed.
   Q_PROPERTY(QString errorText READ errorText NOTIFY changed FINAL)
-  // After a successful save(): e.g. "Expense 12.50 EUR saved".
+  // An existing operation is edited (ADR-0019): its type is fixed, and it
+  // can be deleted.
+  Q_PROPERTY(bool isEditing READ isEditing NOTIFY changed FINAL)
+  // After a successful save() or deleteOperation(): e.g. "Expense 12.50 EUR
+  // saved".
   Q_PROPERTY(QString savedText READ savedText NOTIFY changed FINAL)
 
  public:
@@ -128,9 +133,13 @@ class OperationEditor : public QObject {
   [[nodiscard]] bool valid() const;
   [[nodiscard]] QString errorText() const { return error_text_; }
   [[nodiscard]] QString savedText() const { return saved_text_; }
+  [[nodiscard]] bool isEditing() const { return operation_id_.has_value(); }
 
   // An empty expense with the pre-filled account and today's date.
   Q_INVOKABLE void startNew();
+  // The form for an existing operation (ADR-0019); false (and errorText) if
+  // it cannot be loaded.
+  Q_INVOKABLE bool load(qint64 operation_id);
   // The account, the target account of a transfer, the category. Unknown
   // ids are ignored (the pickers only offer existing ones).
   Q_INVOKABLE void chooseAccount(qint64 account_id);
@@ -141,9 +150,12 @@ class OperationEditor : public QObject {
   // From the calendar, as numbers (month 1..12): a JavaScript Date would be a
   // time in a time zone. An invalid date is ignored.
   Q_INVOKABLE void setDate(int year, int month, int day);
-  // Posts the operation. True, savedText and saved() on success; false and
-  // errorText otherwise.
+  // Posts the operation, or updates the one being edited. True, savedText
+  // and saved() on success; false and errorText otherwise.
   Q_INVOKABLE bool save();
+  // Deletes the operation being edited. True, savedText and saved() on
+  // success; false and errorText otherwise.
+  Q_INVOKABLE bool deleteOperation();
 
  signals:
   void changed();
@@ -170,6 +182,8 @@ class OperationEditor : public QObject {
   void FillToAccount();
   void LoadRecentCategories();
   [[nodiscard]] core::Result<core::OperationDraft> BuildDraft() const;
+  // The amount of a stored operation for a message, e.g. "12.50 EUR".
+  [[nodiscard]] QString AmountText(const core::Operation& operation) const;
 
   core::AccountRepository* accounts_;
   core::CategoryRepository* categories_;
@@ -187,6 +201,7 @@ class OperationEditor : public QObject {
   QVariantList recent_categories_;
   std::chrono::year_month_day date_{};  // set to today by the constructor
   bool accounts_chosen_ = false;  // the user picked an account in this form
+  std::optional<core::OperationId> operation_id_;  // the one being edited
   QString comment_;
   QString error_text_;
   QString saved_text_;

@@ -248,5 +248,118 @@ TEST_F(OperationEditorTest, Dates) {
   EXPECT_TRUE(editor_.isToday());
 }
 
+// --- Editing and deleting (ADR-0019)
+
+TEST_F(OperationEditorTest, LoadsAnOperationForEditing) {
+  AddAccount("Card", kEur);
+  const core::Account cash = AddAccount("Cash", kEur);
+  const core::Category food = AddCategory("Food", CategoryKind::kExpense);
+  const core::Operation stored =
+      services_.operation_service()
+          ->Post(core::OperationDraft::Expense(Date(2026, 10, 20), cash.id,
+                                               food.id, Eur(123450), "lunch")
+                     .value())
+          .value();
+
+  ASSERT_TRUE(editor_.load(stored.id.value()));
+
+  EXPECT_TRUE(editor_.isEditing());
+  EXPECT_EQ(editor_.type(), u"expense"_s);
+  EXPECT_EQ(editor_.amountText(), u"1234.50"_s);  // as typed: no grouping
+  EXPECT_EQ(editor_.accountId(), cash.id.value());
+  EXPECT_EQ(editor_.categoryName(), u"Food"_s);
+  EXPECT_EQ(editor_.day(), 20);
+  EXPECT_EQ(editor_.comment(), u"lunch"_s);
+  EXPECT_TRUE(editor_.valid());
+  // The type of an edited operation is fixed.
+  editor_.setType(u"income"_s);
+  EXPECT_EQ(editor_.type(), u"expense"_s);
+}
+
+TEST_F(OperationEditorTest, SavesChangesInPlace) {
+  const core::Account card = AddAccount("Card", kEur);
+  const core::Category food = AddCategory("Food", CategoryKind::kExpense);
+  PostExpense(card, food);  // 1.00 EUR
+  const core::Operation stored =
+      services_.operations()->Latest(core::OperationType::kExpense).value();
+  ASSERT_TRUE(editor_.load(stored.id.value()));
+
+  editor_.setAmountText(u"7,50"_s);
+  ASSERT_TRUE(editor_.save()) << editor_.errorText().toStdString();
+
+  EXPECT_EQ(saved_.count(), 1);
+  EXPECT_EQ(editor_.savedText(), u"Expense 7.50 EUR saved"_s);
+  EXPECT_EQ(Balance(card), -750);
+  EXPECT_EQ(services_.operations()->List({})->size(), 1U);  // not a new one
+}
+
+TEST_F(OperationEditorTest, EditsATransferBetweenCurrencies) {
+  const core::Account card = AddAccount("Card", kEur);
+  const core::Account dollars = AddAccount("Dollars", kUsd);
+  const core::Operation stored =
+      services_.operation_service()
+          ->Post(core::OperationDraft::Transfer(Date(2026, 10, 20), card.id,
+                                                Eur(10000), dollars.id,
+                                                core::test::Usd(10850), "")
+                     .value())
+          .value();
+
+  ASSERT_TRUE(editor_.load(stored.id.value()));
+  EXPECT_TRUE(editor_.needsAmountIn());
+  EXPECT_EQ(editor_.amountInText(), u"108.50"_s);
+  editor_.setAmountInText(u"109"_s);
+  ASSERT_TRUE(editor_.save()) << editor_.errorText().toStdString();
+
+  EXPECT_EQ(Balance(dollars), 10900);
+}
+
+TEST_F(OperationEditorTest, DeletesAnOperation) {
+  const core::Account card = AddAccount("Card", kEur);
+  PostExpense(card, AddCategory("Food", CategoryKind::kExpense));
+  const core::Operation stored =
+      services_.operations()->Latest(core::OperationType::kExpense).value();
+  ASSERT_TRUE(editor_.load(stored.id.value()));
+  editor_.setAmountText(u"99"_s);  // not saved: the message tells the truth
+
+  ASSERT_TRUE(editor_.deleteOperation()) << editor_.errorText().toStdString();
+
+  EXPECT_EQ(saved_.count(), 1);
+  EXPECT_EQ(editor_.savedText(), u"Expense 1.00 EUR deleted"_s);
+  EXPECT_FALSE(editor_.isEditing());
+  EXPECT_EQ(Balance(card), 0);
+}
+
+TEST_F(OperationEditorTest, OperationsOfArchivedAccountsCannotChange) {
+  AddAccount("Card", kEur);
+  const core::Account cash = AddAccount("Cash", kEur);
+  PostExpense(cash, AddCategory("Food", CategoryKind::kExpense));
+  const core::Operation stored =
+      services_.operations()->Latest(core::OperationType::kExpense).value();
+  ASSERT_TRUE(services_.account_service()->Archive(cash.id));
+
+  // It can still be shown...
+  ASSERT_TRUE(editor_.load(stored.id.value()));
+  EXPECT_EQ(editor_.accountName(), u"Cash"_s);
+  // ...but not changed or deleted (ADR-0019).
+  EXPECT_FALSE(editor_.save());
+  EXPECT_FALSE(editor_.errorText().isEmpty());
+  EXPECT_FALSE(editor_.deleteOperation());
+  EXPECT_EQ(saved_.count(), 0);
+  EXPECT_TRUE(services_.operations()->Get(stored.id).has_value());
+}
+
+TEST_F(OperationEditorTest, StartingANewOneLeavesEditMode) {
+  const core::Account card = AddAccount("Card", kEur);
+  PostExpense(card, AddCategory("Food", CategoryKind::kExpense));
+  ASSERT_TRUE(editor_.load(services_.operations()
+                               ->Latest(core::OperationType::kExpense)
+                               ->id.value()));
+
+  editor_.startNew();
+
+  EXPECT_FALSE(editor_.isEditing());
+  EXPECT_TRUE(editor_.amountText().isEmpty());
+}
+
 }  // namespace
 }  // namespace mymoney::ui::test

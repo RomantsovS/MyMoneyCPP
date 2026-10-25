@@ -231,20 +231,37 @@ class InMemoryOperationRepository final : public OperationRepository {
       : categories_(categories) {}
 
   Result<Operation> Add(const OperationDraft& draft) override {
-    // Like the trigger of migration 0003 (ADR-0015).
-    for (const Movement& movement : draft.movements()) {
-      if (movement.category_id.has_value()) {
-        const Result<Category> category =
-            categories_->Get(*movement.category_id);
-        if (category.has_value() && category->is_group) {
-          return MakeError(ErrorCode::kStorage,
-                           "a group cannot have operations");
-        }
-      }
+    if (Status status = CheckNoGroups(draft); !status) {
+      return std::unexpected(std::move(status).error());
     }
     Operation stored{.id = OperationId(next_id_++), .draft = draft};
     operations_.push_back(stored);
     return stored;
+  }
+
+  Result<Operation> Replace(OperationId id,
+                            const OperationDraft& draft) override {
+    const auto it = std::ranges::find(operations_, id, &Operation::id);
+    if (it == operations_.end()) {
+      return MakeError(ErrorCode::kNotFound,
+                       std::format("no operation with id {}", id.value()));
+    }
+    // All or nothing, like the transaction in SQLite: the old one stays.
+    if (Status status = CheckNoGroups(draft); !status) {
+      return std::unexpected(std::move(status).error());
+    }
+    it->draft = draft;
+    return *it;
+  }
+
+  Status Delete(OperationId id) override {
+    const auto it = std::ranges::find(operations_, id, &Operation::id);
+    if (it == operations_.end()) {
+      return MakeError(ErrorCode::kNotFound,
+                       std::format("no operation with id {}", id.value()));
+    }
+    operations_.erase(it);
+    return {};
   }
 
   Result<Operation> Get(OperationId id) override {
@@ -270,12 +287,32 @@ class InMemoryOperationRepository final : public OperationRepository {
           })) {
         continue;
       }
+      if (filter.category_id &&
+          std::ranges::none_of(draft.movements(), [&](const Movement& m) {
+            return InCategory(m.category_id, *filter.category_id);
+          })) {
+        continue;
+      }
+      if (filter.comment_contains &&
+          AsciiLower(draft.comment())
+                  .find(AsciiLower(*filter.comment_contains)) ==
+              std::string::npos) {
+        continue;
+      }
       result.push_back(operation);
     }
     // Stored in id order; a stable sort by date keeps that order per day.
     std::ranges::stable_sort(result, {}, [](const Operation& operation) {
       return operation.draft.date();
     });
+    if (filter.order == OperationOrder::kNewestFirst) {
+      std::ranges::reverse(result);
+    }
+    if (filter.limit.has_value() &&
+        std::cmp_less(*filter.limit, result.size())) {
+      // erase, not resize: an Operation has no default value (ADR-0012).
+      result.erase(result.begin() + *filter.limit, result.end());
+    }
     return result;
   }
 
@@ -331,6 +368,43 @@ class InMemoryOperationRepository final : public OperationRepository {
   [[nodiscard]] std::size_t size() const { return operations_.size(); }
 
  private:
+  // Like the trigger of migration 0003 (ADR-0015).
+  Status CheckNoGroups(const OperationDraft& draft) {
+    for (const Movement& movement : draft.movements()) {
+      if (movement.category_id.has_value()) {
+        const Result<Category> category =
+            categories_->Get(*movement.category_id);
+        if (category.has_value() && category->is_group) {
+          return MakeError(ErrorCode::kStorage,
+                           "a group cannot have operations");
+        }
+      }
+    }
+    return {};
+  }
+
+  // The movement's category is `wanted`, or `wanted` is its group.
+  bool InCategory(std::optional<CategoryId> category_id, CategoryId wanted) {
+    if (!category_id.has_value()) {
+      return false;
+    }
+    if (*category_id == wanted) {
+      return true;
+    }
+    const Result<Category> category = categories_->Get(*category_id);
+    return category.has_value() && category->parent_id == wanted;
+  }
+
+  // Like SQLite's LIKE, which ignores case for Latin letters only.
+  static std::string AsciiLower(std::string text) {
+    for (char& c : text) {
+      if (c >= 'A' && c <= 'Z') {
+        c = static_cast<char>(c - 'A' + 'a');
+      }
+    }
+    return text;
+  }
+
   InMemoryCategoryRepository* categories_;
   std::int64_t next_id_ = 1;
   std::vector<Operation> operations_;
