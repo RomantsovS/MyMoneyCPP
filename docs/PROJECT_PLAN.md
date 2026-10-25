@@ -1,6 +1,6 @@
 # MyMoney — Project Plan and System Design
 
-> **Status:** draft v0.8 · 2026-10-25
+> **Status:** draft v0.9 · 2026-10-25
 > **Type:** personal learning project
 >
 > This document is a *living plan*. Update it when a decision is made or a milestone is finished.
@@ -506,10 +506,16 @@ Each milestone is small enough for a few evenings. "Learn" lists the topics we d
 - **Done when:** a fresh phone can be set up in the app alone: currency, accounts, categories.
 - **Decisions:** D27 ✔ — design in [ADR-0018](adr/0018-category-screens.md).
 
-### M6 — Journal (UI)
-- **Build:** operations list with filters; edit and delete.
-- **Learn:** filtering in SQL vs proxy models; model updates after edits; date sections.
+### M6 — Journal (UI) (in progress)
+- **Build:** Journal as the second bottom tab; one month at a time (newest first, day
+  headers); filters for account, category or group, and comment text (SQL `LIKE` over the
+  whole history, at most 200 results); editing in the operation form and deleting with a
+  confirmation; `OperationRepository::Replace/Delete`, `OperationService::Update/Delete`;
+  operations on archived accounts are frozen.
+- **Learn:** filtering in SQL vs proxy models; model updates after edits; date sections;
+  replacing rows in one transaction.
 - **Done when:** a month of test data is easy to browse on the phone.
+- **Decisions:** D28 ✔ — design in [ADR-0019](adr/0019-journal.md).
 
 ### M7 — Reports and currency conversion
 - **Build:** exchange rates (storage, download from the chosen source, manual entry);
@@ -577,6 +583,7 @@ translations (D19).
 | D25 | Category groups | M3b | ☑ groups hold categories, categories hold operations — [ADR-0015](adr/0015-category-groups.md) |
 | D26 | Entering operations in the UI | M5 | ☑ one form, defaults from the data, recent categories — [ADR-0017](adr/0017-entering-operations-ui.md) |
 | D27 | Category screens | M5b | ☑ list, add, rename; also from the operation form — [ADR-0018](adr/0018-category-screens.md) |
+| D28 | Journal: browsing, editing, deleting | M6 | ☑ month pages, SQL filters incl. comment `LIKE`, archived frozen — [ADR-0019](adr/0019-journal.md) |
 
 ### Open decisions
 
