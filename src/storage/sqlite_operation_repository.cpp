@@ -237,6 +237,38 @@ core::Result<std::vector<core::Operation>> SqliteOperationRepository::List(
   return operations;
 }
 
+core::Result<core::Operation> SqliteOperationRepository::Latest(
+    core::OperationType type) {
+  return internal::QueryOne(
+             *db_,
+             "SELECT id FROM operation WHERE type = ?1 ORDER BY id DESC LIMIT "
+             "1",
+             std::format("no {} yet", OperationTypeToText(type)),
+             [](const sqlite::Statement& row)
+                 -> core::Result<core::OperationId> {
+               return core::OperationId(row.Column<std::int64_t>(0));
+             },
+             OperationTypeToText(type))
+      .and_then([&](core::OperationId id) { return Get(id); });
+}
+
+core::Result<std::vector<core::CategoryId>>
+SqliteOperationRepository::RecentCategories(core::OperationType type,
+                                            int limit) {
+  core::Check(limit >= 0, "RecentCategories needs a limit >= 0");
+  // Each category once, ordered by its newest operation of this type.
+  return internal::QueryAll<core::CategoryId>(
+      *db_,
+      "SELECT m.category_id FROM movement m "
+      "JOIN operation o ON o.id = m.operation_id "
+      "WHERE o.type = ?1 AND m.category_id IS NOT NULL "
+      "GROUP BY m.category_id ORDER BY MAX(o.id) DESC LIMIT ?2",
+      [](const sqlite::Statement& row) -> core::Result<core::CategoryId> {
+        return core::CategoryId(row.Column<std::int64_t>(0));
+      },
+      OperationTypeToText(type), limit);
+}
+
 core::Result<std::int64_t> SqliteOperationRepository::SumMovements(
     core::AccountId account_id,
     std::optional<std::chrono::year_month_day> up_to) {

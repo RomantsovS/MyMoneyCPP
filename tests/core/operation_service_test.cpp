@@ -138,6 +138,9 @@ class MockOperationRepository : public OperationRepository {
   MOCK_METHOD(Result<Operation>, Get, (OperationId id), (override));
   MOCK_METHOD(Result<std::vector<Operation>>, List,
               (const OperationFilter& filter), (override));
+  MOCK_METHOD(Result<Operation>, Latest, (OperationType type), (override));
+  MOCK_METHOD(Result<std::vector<CategoryId>>, RecentCategories,
+              (OperationType type, int limit), (override));
   MOCK_METHOD(Result<std::int64_t>, SumMovements,
               (AccountId account_id,
                std::optional<std::chrono::year_month_day> up_to),

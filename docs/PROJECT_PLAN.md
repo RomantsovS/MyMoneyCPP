@@ -72,7 +72,7 @@ since 2012 is migrated from the old app.
 | Platform | Frontend | Role | Kit / toolchain | Device |
 |---|---|---|---|---|
 | **Android arm64** | Qt Quick UI | main daily use | `Qt 6.12.0 for Android arm64-v8a` | physical Pixel 6 (Android 17, API 37) |
-| Android x86_64 | Qt Quick UI | fast testing on PC | `Qt 6.12.0 for Android x86_64` | emulator `Pixel6` (API 37) |
+| Android x86_64 | Qt Quick UI | fast testing on PC | `Qt 6.12.0 for Android x86_64` | emulator `Emulator_Pixel6` (API 37) |
 | **Windows x64** | CLI + Qt Quick UI | main *development* platform | MSVC (VS 2026) + Qt 6.12.0 | local PC |
 | **Linux x64** | CLI + Qt Quick UI | portability | GCC 15 + Qt 6.12 in WSL (Ubuntu 26.04 LTS) | WSL / WSLg |
 
@@ -279,7 +279,7 @@ Installed and verified (2026-10-12/13):
 | JDK | Temurin 17.0.20 | Android build (Gradle) |
 | Android SDK | platform 37, build-tools, cmdline-tools 23.0, emulator | Android build & run |
 | Android NDK | 27.2.12479018 (clang 18.0.3, libc++) | Android C++ compiler |
-| Android emulator | AVD `Pixel6`, API 37, x86_64, host GPU, WHPX | testing on PC |
+| Android emulator | AVD `Emulator_Pixel6` (renamed from `Pixel6` 2026-10-25), API 37, x86_64, host GPU, WHPX | testing on PC |
 | Git | 2.54 · GitHub `RomantsovS/MyMoneyCPP` | version control |
 | WSL2 | **Ubuntu 26.04.1 LTS** (distro `Ubuntu-26.04`, installed 2026-10-16, replaces 24.04), systemd, WSLg; Git 2.53, GCC **15.2**, CMake **4.2.3**, Ninja 1.13.2 (installed; M2 builds and tests pass there) | Linux builds |
 
@@ -485,7 +485,7 @@ Each milestone is small enough for a few evenings. "Learn" lists the topics we d
 - **Done when:** you can create accounts on the phone; data survives app restart.
 - **Decisions:** D10 ✔, D11 ✔, D12 ✔, D19 ✔ — design in [ADR-0016](adr/0016-first-ui-accounts.md).
 
-### M5 — Entering operations (UI) (in progress)
+### M5 — Entering operations (UI) — ✅ done 2026-10-25
 - **Build:** one operation form (Expense / Income / Transfer switch) opened by `+` on the
   Accounts page; amount with the number keyboard; recent-category chips and a grouped
   category picker; account picker; Today / Yesterday / calendar; pre-filled values from the

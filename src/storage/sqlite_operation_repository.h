@@ -29,6 +29,11 @@ class SqliteOperationRepository final : public core::OperationRepository {
   core::Result<std::vector<core::Operation>> List(
       const core::OperationFilter& filter) override;
 
+  core::Result<core::Operation> Latest(core::OperationType type) override;
+
+  core::Result<std::vector<core::CategoryId>> RecentCategories(
+      core::OperationType type, int limit) override;
+
   core::Result<std::int64_t> SumMovements(
       core::AccountId account_id,
       std::optional<std::chrono::year_month_day> up_to) override;

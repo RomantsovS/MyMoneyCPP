@@ -8,9 +8,10 @@ This is a personal learning project. Design comes first — see
 [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md) and the decision records in
 [`docs/adr/`](docs/adr/).
 
-**Status:** M4 (first UI) done — the Qt app shows accounts with balances and adds, renames
-and archives accounts on Android and the desktop; all data can be entered with mymoney-cli.
-160 unit tests (143 without Qt, also on Linux). Next: entering operations in the UI (M5).
+**Status:** M5 (entering operations) done — on Android and the desktop the Qt app shows
+accounts with balances, manages accounts and enters expenses, income and transfers;
+categories are still added with mymoney-cli. 179 unit tests (147 without Qt, also on Linux).
+Next: category screens in the app (M5b).
 
 ## Project layout
 

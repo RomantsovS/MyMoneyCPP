@@ -41,6 +41,25 @@ ApplicationWindow {
         }
     }
 
+    // A short message after an operation was saved (ADR-0017), shown over
+    // whatever page the user returns to.
+    ToolTip {
+        id: savedMessage
+
+        x: (root.width - width) / 2
+        y: root.height - height - 96
+        timeout: 3000
+    }
+
+    Connections {
+        target: OperationEditor
+
+        function onSaved() {
+            savedMessage.text = OperationEditor.savedText;
+            savedMessage.open();
+        }
+    }
+
     // Android's back button closes the window; inside a tab it should go back
     // one page first.
     onClosing: close => {

@@ -9,7 +9,8 @@ import QtQuick.Layouts
 import MyMoney.UI
 
 // The Accounts tab (ADR-0016): every account with its balance and the totals
-// per currency below. Tap an account to edit it, + to add one.
+// per currency below. Tap an account to edit it, + to enter an operation;
+// new accounts are added from the menu.
 Page {
     id: page
 
@@ -38,6 +39,12 @@ Page {
 
                     y: menuButton.height
 
+                    MenuItem {
+                        text: qsTr("New account")
+                        onTriggered: page.StackView.view.push(accountForm, {
+                            accountId: -1
+                        })
+                    }
                     MenuItem {
                         text: qsTr("Show archived")
                         checkable: true
@@ -113,9 +120,8 @@ Page {
         highlighted: true
         font.pixelSize: 24
         text: "+"
-        onClicked: page.StackView.view.push(accountForm, {
-            accountId: -1
-        })
+        // The most frequent action: a new operation (ADR-0017).
+        onClicked: page.StackView.view.push(operationForm)
     }
 
     // One line per currency; hidden while there are no accounts.
@@ -143,5 +149,11 @@ Page {
         id: accountForm
 
         AccountForm {}
+    }
+
+    Component {
+        id: operationForm
+
+        OperationForm {}
     }
 }

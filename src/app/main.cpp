@@ -24,7 +24,11 @@
 #include "storage/storage.h"
 #include "ui/controllers/account_editor.h"
 #include "ui/controllers/currency_editor.h"
+#include "ui/controllers/operation_editor.h"
+#include "ui/date_convert.h"
 #include "ui/models/account_list_model.h"
+#include "ui/models/account_picker_model.h"
+#include "ui/models/category_picker_model.h"
 #include "ui/models/currency_list_model.h"
 #include "ui/singleton_instance.h"
 
@@ -35,8 +39,11 @@ namespace {
 
 using mymoney::ui::AccountEditor;
 using mymoney::ui::AccountListModel;
+using mymoney::ui::AccountPickerModel;
+using mymoney::ui::CategoryPickerModel;
 using mymoney::ui::CurrencyEditor;
 using mymoney::ui::CurrencyListModel;
+using mymoney::ui::OperationEditor;
 using mymoney::ui::SingletonInstance;
 
 // The per-user app data folder: on Windows and Linux the same file as the
@@ -85,6 +92,12 @@ int main(int argc, char* argv[]) {
   CurrencyListModel currency_list(services.currencies());
   AccountEditor account_editor(services.accounts(), services.account_service());
   CurrencyEditor currency_editor(services.currencies());
+  AccountPickerModel account_picker(services.accounts());
+  CategoryPickerModel category_picker(services.categories());
+  OperationEditor operation_editor(services.accounts(), services.categories(),
+                                   services.currencies(), services.operations(),
+                                   services.operation_service(),
+                                   mymoney::ui::LocalToday);
   account_list.reload();
   currency_list.reload();
 
@@ -93,6 +106,9 @@ int main(int argc, char* argv[]) {
                    &AccountListModel::reload);
   QObject::connect(&currency_editor, &CurrencyEditor::saved, &currency_list,
                    &CurrencyListModel::reload);
+  // A new operation changes balances.
+  QObject::connect(&operation_editor, &OperationEditor::saved, &account_list,
+                   &AccountListModel::reload);
 
   // D12, option B: QML gets exactly these objects as its singletons.
   const SingletonInstance<AccountListModel>::Registration account_list_qml(
@@ -103,6 +119,12 @@ int main(int argc, char* argv[]) {
       &account_editor);
   const SingletonInstance<CurrencyEditor>::Registration currency_editor_qml(
       &currency_editor);
+  const SingletonInstance<AccountPickerModel>::Registration account_picker_qml(
+      &account_picker);
+  const SingletonInstance<CategoryPickerModel>::Registration
+      category_picker_qml(&category_picker);
+  const SingletonInstance<OperationEditor>::Registration operation_editor_qml(
+      &operation_editor);
 
   // Main.qml declares "required property string appVersion".
   return RunQml(

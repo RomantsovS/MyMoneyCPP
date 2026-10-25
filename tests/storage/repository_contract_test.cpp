@@ -395,6 +395,56 @@ TYPED_TEST(RepositoryContractTest, ListsOperationsByDateAndFilter) {
             (std::vector<Operation>{}));
 }
 
+TYPED_TEST(RepositoryContractTest, LatestIsTheLastEnteredOfItsType) {
+  const Account card = this->AddAccount("Card EUR");
+  const Account cash = this->AddAccount("Cash EUR");
+  const Category food = this->AddCategory("Food", CategoryKind::kExpense);
+  auto& operations = this->repos_.operations;
+  ASSERT_TRUE(
+      operations.Add(OperationDraft::Expense(Date(2026, 10, 20), card.id,
+                                             food.id, Eur(100), "")
+                         .value()));
+  // Entered later, dated earlier: still the latest one (ADR-0017).
+  const Operation last =
+      operations
+          .Add(OperationDraft::Expense(Date(2026, 10, 1), cash.id, food.id,
+                                       Eur(200), "")
+                   .value())
+          .value();
+
+  EXPECT_EQ(operations.Latest(OperationType::kExpense), last);
+  EXPECT_EQ(operations.Latest(OperationType::kTransfer).error().code,
+            ErrorCode::kNotFound);
+}
+
+TYPED_TEST(RepositoryContractTest, RecentCategoriesNewestFirstEachOnce) {
+  const Account card = this->AddAccount("Card EUR");
+  const Category food = this->AddCategory("Food", CategoryKind::kExpense);
+  const Category taxi = this->AddCategory("Taxi", CategoryKind::kExpense);
+  const Category cafe = this->AddCategory("Cafe", CategoryKind::kExpense);
+  const Category salary = this->AddCategory("Salary", CategoryKind::kIncome);
+  auto& operations = this->repos_.operations;
+  // Entered in this order: Food, Taxi, Food, salary, Cafe.
+  for (const Category& category : {food, taxi, food, salary, cafe}) {
+    const bool income = category.kind == CategoryKind::kIncome;
+    ASSERT_TRUE(operations.Add(
+        (income ? OperationDraft::Income(Date(2026, 10, 1), card.id,
+                                         category.id, Eur(100), "")
+                : OperationDraft::Expense(Date(2026, 10, 1), card.id,
+                                          category.id, Eur(100), ""))
+            .value()));
+  }
+
+  EXPECT_EQ(operations.RecentCategories(OperationType::kExpense, 10),
+            (std::vector<CategoryId>{cafe.id, food.id, taxi.id}));
+  EXPECT_EQ(operations.RecentCategories(OperationType::kExpense, 2),
+            (std::vector<CategoryId>{cafe.id, food.id}));
+  EXPECT_EQ(operations.RecentCategories(OperationType::kIncome, 10),
+            (std::vector<CategoryId>{salary.id}));
+  EXPECT_EQ(operations.RecentCategories(OperationType::kTransfer, 10),
+            std::vector<CategoryId>{});
+}
+
 TYPED_TEST(RepositoryContractTest, SumOfAnAccountWithoutMovementsIsZero) {
   const Account cash = this->AddAccount("Cash EUR");
 

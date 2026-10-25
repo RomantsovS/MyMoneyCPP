@@ -8,6 +8,8 @@ add_executable(mymoney_ui_tests
   account_list_model_test.cpp
   editors_test.cpp
   money_format_test.cpp
+  operation_editor_test.cpp
+  picker_model_test.cpp
   qt_print.h
   ui_test_base.h
   ui_test_main.cpp

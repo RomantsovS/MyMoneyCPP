@@ -14,6 +14,7 @@
 #include "core/currency_code.h"
 #include "core/money.h"
 #include "core/operation.h"
+#include "core/strong_id.h"
 #include "core/test_util.h"
 #include "storage/app_services.h"
 #include "storage/storage.h"
@@ -35,6 +36,24 @@ class UiTest : public ::testing::Test {
   core::Account AddAccount(std::string name, core::CurrencyCode currency) {
     return services_.account_service()
         ->Create({.name = std::move(name), .currency = currency})
+        .value();
+  }
+
+  // A category at the root, or inside the group `group_id`.
+  core::Category AddCategory(
+      std::string name, core::CategoryKind kind,
+      std::optional<core::CategoryId> group_id = std::nullopt) {
+    return services_.category_service()
+        ->Create({.name = std::move(name), .kind = kind, .parent_id = group_id})
+        .value();
+  }
+
+  core::Category AddGroup(std::string name, core::CategoryKind kind) {
+    return services_.category_service()
+        ->Create({.name = std::move(name),
+                  .kind = kind,
+                  .parent_id = std::nullopt,
+                  .is_group = true})
         .value();
   }
 

@@ -10,21 +10,28 @@ qt_add_library(mymoney_ui STATIC)
 
 set(mymoney_ui_qml_files
   AccountForm
+  AccountPicker
   AccountsPage
+  CategoryPicker
   CurrencyForm
+  DateDialog
   Main
+  OperationForm
   StartupError
 )
 list(TRANSFORM mymoney_ui_qml_files REPLACE "(.+)" "qml/\\1.qml"
   OUTPUT_VARIABLE mymoney_ui_qml_paths)
 
-# The QML compiler turns every .qml file into C++ (.rcc/qmlcache/...). MSVC
-# warns about unreachable code inside Qt headers when compiling it (C4702).
-# That is generated code, not ours (ADR-0011): only there the warning is off.
+# The QML compiler turns every .qml file into C++ (.rcc/qmlcache/...). That is
+# generated code, not ours (ADR-0011), and it trips two of our warnings: MSVC
+# C4702 (unreachable code inside Qt headers) and clang's -Wshorten-64-to-32
+# (part of -Wconversion; qsizetype to int, seen in the Android build). Only
+# there these warnings are off.
 foreach(name IN LISTS mymoney_ui_qml_files)
   set_source_files_properties(
     "${CMAKE_CURRENT_BINARY_DIR}/.rcc/qmlcache/mymoney_ui_qml_${name}_qml.cpp"
-    PROPERTIES COMPILE_OPTIONS "$<$<CXX_COMPILER_ID:MSVC>:/wd4702>")
+    PROPERTIES COMPILE_OPTIONS
+      "$<IF:$<CXX_COMPILER_ID:MSVC>,/wd4702,-Wno-conversion;-Wno-sign-conversion>")
 endforeach()
 
 qt_add_qml_module(mymoney_ui
@@ -36,8 +43,16 @@ qt_add_qml_module(mymoney_ui
     controllers/account_editor.h
     controllers/currency_editor.cpp
     controllers/currency_editor.h
+    controllers/operation_editor.cpp
+    controllers/operation_editor.h
+    date_convert.cpp
+    date_convert.h
     models/account_list_model.cpp
     models/account_list_model.h
+    models/account_picker_model.cpp
+    models/account_picker_model.h
+    models/category_picker_model.cpp
+    models/category_picker_model.h
     models/currency_list_model.cpp
     models/currency_list_model.h
     money_format.cpp

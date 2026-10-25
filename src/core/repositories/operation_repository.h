@@ -36,6 +36,17 @@ class OperationRepository {
   [[nodiscard]] virtual Result<std::vector<Operation>> List(
       const OperationFilter& filter) = 0;
 
+  // The most recently entered operation of this type - the highest id, not
+  // the latest date - so a form can start with its accounts (ADR-0017).
+  // kNotFound if there is none.
+  [[nodiscard]] virtual Result<Operation> Latest(OperationType type) = 0;
+
+  // The categories of the most recently entered operations of this type,
+  // newest first, each one once, at most `limit` (ADR-0017). Empty for
+  // transfers, which have no category. Precondition: limit >= 0.
+  [[nodiscard]] virtual Result<std::vector<CategoryId>> RecentCategories(
+      OperationType type, int limit) = 0;
+
   // The sum of all movement amounts of an account, in minor units of the
   // account's currency, for operations dated on or before `up_to` (all
   // operations if nullopt). In M2 this is one SQL SUM, so balances never need

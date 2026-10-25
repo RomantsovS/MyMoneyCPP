@@ -12,8 +12,10 @@
 #include <format>
 #include <map>
 #include <optional>
+#include <ranges>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "core/account.h"
@@ -258,6 +260,37 @@ class InMemoryOperationRepository final : public OperationRepository {
     std::ranges::stable_sort(result, {}, [](const Operation& operation) {
       return operation.draft.date();
     });
+    return result;
+  }
+
+  Result<Operation> Latest(OperationType type) override {
+    // Stored in id order: the last match is the most recently entered.
+    const auto it = std::ranges::find(
+        operations_ | std::views::reverse, type,
+        [](const Operation& operation) { return operation.draft.type(); });
+    if (it == std::ranges::end(operations_ | std::views::reverse)) {
+      return MakeError(ErrorCode::kNotFound, "no such operation yet");
+    }
+    return *it;
+  }
+
+  Result<std::vector<CategoryId>> RecentCategories(OperationType type,
+                                                   int limit) override {
+    std::vector<CategoryId> result;
+    for (const Operation& operation : operations_ | std::views::reverse) {
+      if (std::cmp_greater_equal(result.size(), limit)) {
+        break;
+      }
+      if (operation.draft.type() != type) {
+        continue;
+      }
+      for (const Movement& movement : operation.draft.movements()) {
+        if (movement.category_id.has_value() &&
+            std::ranges::find(result, *movement.category_id) == result.end()) {
+          result.push_back(*movement.category_id);
+        }
+      }
+    }
     return result;
   }
 

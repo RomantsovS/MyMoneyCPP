@@ -75,7 +75,7 @@ Start `wsl` with a timeout (`Start-Process ... WaitForExit`): a distro waiting f
 blocks every command.
 
 **Android** builds normally run in Qt Creator (kits `Qt 6.12.0 for Android arm64-v8a` for
-the Pixel 6, `x86_64` for the emulator AVD `Pixel6`). From the terminal, reuse Qt Creator's
+the Pixel 6, `x86_64` for the emulator AVD `Emulator_Pixel6`). From the terminal, reuse Qt Creator's
 build folder; it uses the NMake/JOM generator:
 
 ```bat
