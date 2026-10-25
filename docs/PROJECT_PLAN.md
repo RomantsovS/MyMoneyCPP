@@ -1,6 +1,6 @@
 # MyMoney — Project Plan and System Design
 
-> **Status:** draft v0.7 · 2026-10-25
+> **Status:** draft v0.8 · 2026-10-25
 > **Type:** personal learning project
 >
 > This document is a *living plan*. Update it when a decision is made or a milestone is finished.
@@ -495,6 +495,17 @@ Each milestone is small enough for a few evenings. "Learn" lists the topics we d
 - **Done when:** adding an expense on the phone takes < 10 seconds.
 - **Decisions:** D26 ✔ — design in [ADR-0017](adr/0017-entering-operations-ui.md).
 
+### M5b — Category screens (in progress)
+- **Why:** categories are MVP (section 3.1), but no milestone had screens for them; on the
+  phone (its own database) there were none, so only transfers could be entered.
+- **Build:** Categories page (`⋮` → Categories) with the tree of groups and categories per
+  kind; add a group, add a category (root or group), rename both; "+ New category" in the
+  category picker of the operation form; `CategoryService::Rename`.
+- **Learn:** tree-like lists in a flat `ListView`, reusing a form from two places, model
+  updates after an edit.
+- **Done when:** a fresh phone can be set up in the app alone: currency, accounts, categories.
+- **Decisions:** D27 ✔ — design in [ADR-0018](adr/0018-category-screens.md).
+
 ### M6 — Journal (UI)
 - **Build:** operations list with filters; edit and delete.
 - **Learn:** filtering in SQL vs proxy models; model updates after edits; date sections.
@@ -565,6 +576,7 @@ translations (D19).
 | D24 | Build system and M0 skeleton | M0 | ☑ [ADR-0011](adr/0011-build-system-and-skeleton.md) |
 | D25 | Category groups | M3b | ☑ groups hold categories, categories hold operations — [ADR-0015](adr/0015-category-groups.md) |
 | D26 | Entering operations in the UI | M5 | ☑ one form, defaults from the data, recent categories — [ADR-0017](adr/0017-entering-operations-ui.md) |
+| D27 | Category screens | M5b | ☑ list, add, rename; also from the operation form — [ADR-0018](adr/0018-category-screens.md) |
 
 ### Open decisions
 
