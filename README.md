@@ -12,7 +12,7 @@ This is a personal learning project. Design comes first — see
 balances, manages accounts, groups and categories, enters expenses, income and transfers, and
 browses, filters, edits and deletes them in the journal. 223 unit tests (173 without Qt, also
 on Linux), plus an adb smoke test of the Android back navigation
-(`tools/android-back-test.ps1`). Next: reports and currency conversion (M7).
+(`tools/android-back-test.ps1`). Next: exchange rates and balances in a chosen currency (M7a).
 
 ## Project layout
 

@@ -1,6 +1,6 @@
 # MyMoney — Project Plan and System Design
 
-> **Status:** draft v0.9 · 2026-10-25
+> **Status:** draft v0.10 · 2026-10-27
 > **Type:** personal learning project
 >
 > This document is a *living plan*. Update it when a decision is made or a milestone is finished.
@@ -90,8 +90,18 @@ On the desktop it runs in a phone-sized window.
 - **Accounts** — create / edit / archive; each account has one currency.
 - **Categories** — expense and income categories; root-level *groups* hold categories,
   only categories hold operations (max depth 2, ADR-0015).
-- **Operations** — expense, income, transfer between accounts (also cross-currency).
-- **Journal** — list of operations, filter by period / account / category.
+- **Operations** — expense, income, transfer between accounts (also cross-currency, with the
+  exchange rate shown and editable in the form); a warning when an account would go below
+  zero.
+- **Refunds** — money back for an expense (e.g. a returned ticket) reduces that expense on
+  the refund's date, linked to the original; balances are correct on every day.
+- **People and debts** — a person's debt is an account per person and currency; lending,
+  borrowing and repaying are transfers (decided 2026-10-27).
+- **Joint expenses** — one expense shared with people: the payer's account pays the total,
+  the others' shares go to their debt accounts; the category report counts only your share.
+- **Labels** — tags on operations (e.g. "vacation 2026.08") from a label catalogue; filter in
+  the journal and the report (moved into the MVP 2026-10-27: the old app's history has them).
+- **Journal** — list of operations, filter by period / account / category / label.
 - **Income & expense report** — by category hierarchy, **per currency**;
   filters: currency, category, account, date range.
 - **Balances** — current balance per account, and in a chosen currency **with conversion**
@@ -107,7 +117,6 @@ On the desktop it runs in a phone-sized window.
 - **Balance history** in a chosen currency (not MVP — decided 2026-10-16).
 - **Account tags** — user-defined tags on accounts (e.g. "liquid") for grouping and totals.
   There is deliberately no fixed account type: the name says what an account is.
-- **Labels** — tags on operations (e.g. "vacation 2026.08"), filter in reports. Not MVP, maybe never.
 - Charts (Qt Graphs).
 - Recurring / planned operations.
 - Search.
@@ -520,18 +529,71 @@ Each milestone is small enough for a few evenings. "Learn" lists the topics we d
 - **Done when:** a month of test data is easy to browse on the phone.
 - **Decisions:** D28 ✔ — design in [ADR-0019](adr/0019-journal.md).
 
-### M7 — Reports and currency conversion
-- **Build:** exchange rates (storage, download from the chosen source, manual entry);
-  income/expense report by category tree per currency; current balances in a chosen currency.
-- **Learn:** aggregate SQL and recursive queries, exact decimal arithmetic for rates,
-  interfaces for external services (`RateSource`), HTTP with Qt Network, parsing a provider's
-  response format, report UI (tree / table), Qt Graphs basics (optional).
-- **Done when:** reports match the same period in the old app.
-- **Decisions:** D21.
+M7 was split on 2026-10-27 into M7a–M7f: the old app has features the import (M8) needs
+first — rates in transfers, a balance check, refunds, debts, joint expenses and labels. The
+report comes last, so it counts refunds and joint expenses correctly and can filter by label.
+
+### M7a — Exchange rates and balances in a chosen currency
+- **Build:** exchange rates from the ECB (default) and the CBR (RUB, KZT), manual rates
+  (USDT); exact conversion along chains of rates; the Accounts total in a display currency;
+  an Exchange rates page; currency codes of 3–5 letters; `rate` CLI commands (file import).
+- **Learn:** exact decimal arithmetic (128-bit intermediates), interfaces for external
+  services (`RateSource`), HTTP with Qt Network, TLS on Android, parsing a provider's format.
+- **Done when:** the Accounts page shows a correct total in any of your currencies.
+- **Decisions:** D21 — design in [ADR-0020](adr/0020-exchange-rates.md).
+
+### M7b — Operation form: exchange rate and balance check
+- **Build:** cross-currency transfers show the rate; amount out, amount in and rate are
+  linked (the two last edited are kept, the third is calculated; either direction, e.g.
+  `1 USD = x EUR` or `1 EUR = x USD`), pre-filled with the market rate; the stored truth stays
+  the two amounts. A warning, with confirmation, when an expense or transfer would take an
+  account below zero on any day from its date on.
+- **Learn:** linked form fields without update loops, decimal input, running balances in SQL.
+- **Done when:** a cross-currency transfer is entered from an amount and a rate in either
+  direction, and gives the same amounts as the old app.
+- **Decisions:** D29.
+
+### M7c — Refunds
+- **Build:** a new operation type `refund`: one positive movement on one of your accounts
+  with an **expense** category, so it reduces that expense; entered with a *Refund* action
+  on an expense in the journal (account, category and amount pre-filled), linked to the
+  original (`refund_of`); the journal shows "refunded 90 of 100", with a warning when the
+  refunds exceed the original. In the report a refund counts on its own date (cash basis).
+- **Learn:** amending the ledger's shape rules (ADR-0006), links between operations.
+- **Done when:** a returned ticket gives the correct balance on every day and the correct
+  expense in the report.
+- **Decisions:** D30.
+
+### M7d — People, debts and joint expenses
+- **Build:** a People catalogue; a debt account per person and currency, created on demand,
+  shown in a People section apart from your own money; lending, borrowing and repaying as
+  transfers; joint expenses — one operation where the payer's account pays the total and
+  each person's share goes to their debt account, all with the expense's category; an
+  expense paid by a friend is an expense from their debt account.
+- **Learn:** extending the ledger's shape rules (ADR-0006), report sums over movements.
+- **Done when:** a joint expense and a repayment give the same balances and debts as the old
+  app.
+- **Decisions:** D31.
+
+### M7e — Labels
+- **Build:** a label catalogue; labels as chips on an operation (picked, or created by
+  typing); filter by label in the journal.
+- **Learn:** many-to-many tables, chips input in QML.
+- **Done when:** the operations of a trip are found by their label.
+- **Decisions:** D32.
+
+### M7f — Income/expense report
+- **Build:** income and expenses by category tree, per currency (no conversion — ADR-0004);
+  period, account, category and label filters; joint expenses count only your share.
+- **Learn:** aggregate SQL, report UI (tree / table), Qt Graphs basics (optional).
+- **Done when:** a month's report matches the same month in the old app (checked again with
+  the full history after M8).
+- **Decisions:** D33.
 
 ### M8 — Import from the old app
 - **Build:** export from the 1C app; `mymoney_cli import` command; level-3 categories merged
-  into their parents; exchange rates imported if available.
+  into their parents; exchange rates imported if available; people, debts, joint expenses
+  and labels.
 - **Learn:** JSON/CSV parsing, ID mapping, idempotent import, data validation.
 - **Done when:** the full history since 2012 is in MyMoney and the balances match.
 - **Decisions:** D15.
@@ -548,8 +610,7 @@ Each milestone is small enough for a few evenings. "Learn" lists the topics we d
 - **Done when:** every push is built and tested automatically.
 
 ### Later
-Balance history (if not in M7), labels, charts, recurring operations, PIN lock, sync (D14),
-translations (D19).
+Balance history, charts, recurring operations, PIN lock, sync (D14), translations (D19).
 
 ---
 
@@ -579,7 +640,7 @@ translations (D19).
 | D18 | Name, package ID, repo | M0 | ☑ [ADR-0005](adr/0005-android-package-id.md) |
 | D19 | UI language(s) | M4 | ◐ English now (`qsTr()`), Russian translation later — [ADR-0016](adr/0016-first-ui-accounts.md) |
 | D20 | How to record decisions | M0 | ☑ ADRs — [ADR-0001](adr/0001-record-decisions-as-adrs.md) |
-| D21 | Exchange rates and conversion | M7 | ◐ proposed, only the rate source open — [ADR-0009](adr/0009-exchange-rates-for-balance-reports.md) |
+| D21 | Exchange rates and conversion | M7a | ◐ proposed: ECB default, CBR for RUB/KZT, manual USDT — [ADR-0020](adr/0020-exchange-rates.md) (supersedes ADR-0009) |
 | D22 | CLI argument parsing | M3 | ☑ hand-written parser + command table — [ADR-0014](adr/0014-cli-design.md) |
 | D23 | Logging in pure C++ layers | M1 | ☑ none; frontends log — [ADR-0012](adr/0012-domain-model.md) |
 | D24 | Build system and M0 skeleton | M0 | ☑ [ADR-0011](adr/0011-build-system-and-skeleton.md) |
@@ -587,6 +648,11 @@ translations (D19).
 | D26 | Entering operations in the UI | M5 | ☑ one form, defaults from the data, recent categories — [ADR-0017](adr/0017-entering-operations-ui.md) |
 | D27 | Category screens | M5b | ☑ list, add, rename; also from the operation form — [ADR-0018](adr/0018-category-screens.md) |
 | D28 | Journal: browsing, editing, deleting | M6 | ☑ month pages, SQL filters incl. comment `LIKE`, archived frozen — [ADR-0019](adr/0019-journal.md) |
+| D29 | Rate in transfers, balance check | M7b | ◐ linked amount/rate fields; warn and confirm below zero |
+| D30 | Refunds | M7c | ◐ refund type, linked to its expense, counted on its own date |
+| D31 | People, debts, joint expenses | M7d | ◐ debts are accounts per person and currency; joint expense = one operation |
+| D32 | Labels | M7e | ◐ label catalogue, many-to-many |
+| D33 | Income/expense report | M7f | ☐ |
 
 ### Open decisions
 
@@ -600,17 +666,26 @@ a small server. The ids are INTEGER (D4, ADR-0012); merging data from two device
 an extra `uuid` column.
 
 **D15 — Import from the 1C app (M8).** Export format (JSON is probably the easiest to write
-in 1C), what to do with labels (a table without UI, or drop them), exchange-rate history.
-Already decided: level-3 categories are merged into their parents (ADR-0006).
+in 1C), exchange-rate history, mapping the old debt operations and joint expenses onto debt
+accounts (D31). Already decided: level-3 categories are merged into their parents
+(ADR-0006); labels are imported into the label catalogue (D32).
 
 **D19 — UI language (later).** The UI is English with every string in `qsTr()` (ADR-0016).
 Open: when to add the Russian translation (Qt Linguist), and how the core's English error
 messages get translated texts.
 
-**D21 — Exchange rates (M7).** Decided (2026-10-16): downloaded from the internet for a
-configurable currency list, manually or on app start; stored as published (no global base
-currency; the display currency is chosen per report); balance history not MVP. Open: which
-rate source (ADR-0009).
+**D21 — Exchange rates (M7a).** Proposed in ADR-0020, waiting for review: ECB by default,
+CBR for RUB and KZT, manual rates for USDT; exact conversion along chains of rates; currency
+codes of 3–5 letters; the CLI imports rate files.
+
+**D29–D32 (M7b–M7e).** The direction was decided on 2026-10-27 (rate fields linked in the
+form, a warning below zero, refunds linked to their expense and counted on their own date,
+debts as accounts per person and currency, a label catalogue); each gets its ADR when its
+milestone starts. D30 and D31 amend ADR-0006: a refund is a positive movement with an
+expense category; a joint expense has a movement per person, each with the category.
+
+**D33 — Income/expense report (M7f).** Per currency, by category tree (ADR-0004); details
+when M7f starts.
 
 ---
 
@@ -620,7 +695,7 @@ rate source (ADR-0009).
 |---|---|---|
 | Data loss on the phone (uninstall, phone lost) | **high** | backup before daily use (M9); keep the old app until MyMoney is proven |
 | Import mismatches (14 years of edge cases) | wrong balances | compare balances per account and date with the old app (M8) |
-| Exchange-rate precision and missing rates | wrong converted totals | exact arithmetic, clear "latest rate on or before" rule, tests (M7) |
+| Exchange-rate precision and missing rates | wrong converted totals | exact arithmetic, clear "latest rate on or before" rule, tests (M7a) |
 | Tooling breaks after updates (already happened once) | lost evenings | pin versions in README; update deliberately |
 | Qt 6.12.0 is a fresh `.0` release | small bugs | update to 6.12.x patch releases |
 | Scope creep | never reach daily use | strict MVP (section 3.1) |
